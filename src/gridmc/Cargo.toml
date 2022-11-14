@@ -1,0 +1,45 @@
+[package]
+name = "gridmc"
+version = "0.1.0"
+authors = ["Benjamin Bolbrinker <benjamin.bolbrinker@kemi.uu.se>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "gridmc"
+crate-type = ["lib", "cdylib"]
+
+[dependencies.pyo3]
+version = "0.12.3"
+features = ["extension-module"]
+
+[dependencies]
+cubeio = "0.2.2"
+physical_constants = "0.3.0"
+statrs = "0.13.0"
+itertools = "0.10.0"
+float-cmp = "0.8.0"
+ndarray = "0.13"
+nalgebra = "0.24.0"
+rand = "0.8.2"
+num_cpus = "1.13.0"
+threadpool = "1.8.1"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4.14"
+env_logger = "0.8.3"
+serde_json = "1.0"
+getset = "0.1.1"
+linecount = "0.1.0"
+lru = "0.6.5"
+cblas = "0.4"
+openblas-src = "0.9"
+transpose = "0.2.1"
+lumol = {git = "https://github.com/lumol-org/lumol"}
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "mmc_benchmark"
+harness = false
