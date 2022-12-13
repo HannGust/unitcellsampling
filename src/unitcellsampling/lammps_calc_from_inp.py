@@ -1,7 +1,7 @@
 import ase
 from ase.calculators.lammpslib import LAMMPSlib
-from decorators import subdir_calc
-from read_atom_types import read_lammpsdata_atom_info
+from unitcellsampling.decorators import subdir_calc
+from unitcellsampling.read_atom_types import read_lammpsdata_atom_info
 
 # unsure if needed
 import os

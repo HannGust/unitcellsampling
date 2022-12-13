@@ -1,6 +1,6 @@
 import ase, ase.io
 import numpy as np
-from decorators import subdir_calc
+from unitcellsampling.decorators import subdir_calc
 
 # energy calculators
 from ase.calculators.lammpsrun import LAMMPS
