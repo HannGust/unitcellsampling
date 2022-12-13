@@ -13,10 +13,10 @@ from ase.calculators.cp2k import CP2K
 from ase.calculators.lammpsrun import LAMMPS
 from ase.calculators.lammpslib import LAMMPSlib
 
-from lammps_calc_from_inp import parser_lammps_mel_inp
-from lammps_calc_from_inp import lammps_method_from_data
+from unitcellsampling.lammps_calc_from_inp import parser_lammps_mel_inp
+from unitcellsampling.lammps_calc_from_inp import lammps_method_from_data
 
-from special_methods import struct_73679_ff
+from unitcellsampling.special_methods import struct_73679_ff
 # predefined by Ben
 #import energy_calculators
 
@@ -24,14 +24,14 @@ from special_methods import struct_73679_ff
 from ase.io.cube import write_cube
 from ase.io.xsf import write_xsf # Added to test if its better /H 
 
-from decorators import subdir_calc
+from unitcellsampling.decorators import subdir_calc
 import os
 import argparse
 import numpy as np
 import math as ma
 
-from preparatory_fcns import unitcell_to_supercell_frac_coords
-from preparatory_fcns import remove_nonframework_cations_fancy
+from unitcellsampling.preparatory_fcns import unitcell_to_supercell_frac_coords
+from unitcellsampling.preparatory_fcns import remove_nonframework_cations_fancy
 # Defaults
 
 # Last update: 
