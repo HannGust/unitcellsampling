@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "unitcellsampling"
+version = "0.1.0"
+description = "Tools for efficient sampling of the potential energy surface of periodic solids."
+authors = ["Hannes Gustafsson <hannes.gustafsson@kemi.uu.se>"]
+license = "GPL-3"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.12"
+ase = ">=3.15.0"
+gemmi = "^0.5.7"
+mendeleev = "^0.12.1"
+scikit-learn = "^1.2.0"
+spglib = "^2.0.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
