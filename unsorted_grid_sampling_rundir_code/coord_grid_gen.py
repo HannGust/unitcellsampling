@@ -26,7 +26,7 @@ parser.add_argument('--vdw', type=float, action='store', default=0.01, help="Spe
 parser.add_argument('--shift', type=float, action='store', default=None, help="Specify the fraction of the fraction of the unit cell vectors by which the gridpoints should be shifted. \
     This is intended to solve some problems with lammps complaining about points not being within the boundaries of the given cell. Default is no shift.")
 #parser.add_argument('--autoshift', type=float, action='store', default=None, help="Automatically determines the shift that needs to be applied to the coordinates for all of them to be . \
-
+parser.add_argument('--midvox','--midvoxel', action='store_true', help="Specify that the sampling should be done in the middle of each voxel, and automatically determines the shift that achieves this.")
 
 args = parser.parse_args()
 
@@ -98,9 +98,14 @@ unitcell_included = unitcell_included.reshape(-1)
 unitcell_included_bool = np.array(unitcell_included, dtype=bool)
 unitcell_grid_included = unitcell_grid[unitcell_included_bool]
 
-# Shift the grid is desired
-if args.shift:
+# Shift the grid if desired
+if args.shift and not args.midvox:
     unitcell_grid_included = unitcell_grid_included + args.shift * (np.sum(unitcell.get_cell(), 1))
+
+if args.midvox:
+    shift_vec = 0.5 * np.array((1/nx, 1/ny, 1/nz))
+    unitcell_grid_included = unitcell_grid_included + shift_vec @ unitcell.get_cell()
+
 
 # TODO: Add some check to see whether the coordinates are within the cell
 #       boundaries or not.
