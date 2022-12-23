@@ -129,11 +129,18 @@ with open(path_to_input_data_file, 'w') as f:
     
     f.write("Grid shape: "+str((nx, ny, nz))+"\n")
     f.write("Num points: "+str(nx*ny*nz)+"\n")
-    f.write("VdW parameter: "+str(args.vdw)+"\n")
+    f.write("vdW parameter: "+str(args.vdw)+"\n")
     
-    f.write("Is grid shifted: "+str(bool(args.shift))+"\n")
-    if args.shift:
+    f.write("Is grid shifted: "+str(bool(args.shift) or args.midvox)+"\n")
+    f.write("Center voxel (midvox) sampling: "+str(bool(args.midvox))+"\n")
+
+    if args.shift and not args.midvox:
         f.write("Grid shift fraction: "+str(args.shift))
+
+    if args.midvox:
+        f.write("Grid shift fraction (midvox): "+str(shift_vec))
+    
+    
 
 np.savetxt(path_to_coord_txt_file, unitcell_grid_included)
 
