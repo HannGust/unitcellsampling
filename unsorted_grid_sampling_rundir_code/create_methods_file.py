@@ -1,6 +1,6 @@
 
 import os, sys, ase, ase.io, argparse, numpy as np
-from lammps_calc_from_inp import parser_lammps_mel_inp,\
+from unitcellsampling.lammps_calc_from_inp import parser_lammps_mel_inp,\
                                  mel_read_pp_from_lmp_data_file,\
                                  mel_lmp_read_in_file,\
                                  mel_lmp_read_charges_file,\
