@@ -70,10 +70,11 @@ if Path(txtfile).exists() and Path(txtfile).is_file():
         file.write("")
         file.write(header_comment)
         file.write(method_txt)
+        file.write("")
 else:
     with open(txtfile, 'w') as file:
         file.write(top_comment)
         file.write("")
         file.write(header_comment)
         file.write(method_txt)
-
+        file.write("")
