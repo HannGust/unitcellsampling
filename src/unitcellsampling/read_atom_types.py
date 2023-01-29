@@ -45,8 +45,8 @@ def read_lammpsdata_atom_info(data_file, atomic_mass_diff_threshold=0.05):
         atom_mass_match = re.search(' [0-9]+.[0-9]+ ', line)
         chem_symb_match = re.search('# ([A-Z][a-z]*)', line)
         
-        atom_labels.append(atom_label_match.group().strip())
-        atom_masses.append(atom_mass_match.group().strip())
+        atom_labels.append(int(atom_label_match.group().strip()))
+        atom_masses.append(float(atom_mass_match.group().strip()))
         chem_symbs.append(chem_symb_match.group(1).strip())
    
     for a,m in zip(chem_symbs,atom_masses):
