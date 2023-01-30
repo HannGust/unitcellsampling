@@ -17,8 +17,13 @@ from unitcellsampling.lammps_calc_from_inp import parser_lammps_mel_inp
 from unitcellsampling.lammps_calc_from_inp import lammps_method_from_data
 
 from unitcellsampling.special_methods import struct_73679_ff
+
+from autocreated_methods import *
+
 # predefined by Ben
 #import energy_calculators
+
+
 
 # File handling
 from ase.io.cube import write_cube
@@ -45,6 +50,94 @@ from unitcellsampling.preparatory_fcns import remove_nonframework_cations_fancy
 # TODO: Actually: Move the setting of a project name and setting of environment variables to an exterior runscript - MAYBE, but arguably could be set here too.
 # TODO: Move the definition the the method arguments to this list here, for easier editing
 method_list = ['pbe', 'lammps_lj', 'lammps_lj_coul', 'ff_boulfelfel', 'ff_boulfelfel_buck', 'ff_garcia_sanches', 'ase_lj', '54189', '73679']
+
+automethods = {'A54189':m54189_auto,
+  'A54209':m54209_auto,
+  'A54297':m54297_auto,
+  'A54449':m54449_auto,
+  'A54683':m54683_auto,
+  'A54837':m54837_auto,
+  'A54865':m54865_auto,
+  'A54879':m54879_auto,
+  'A54884':m54884_auto,
+  'A55184':m55184_auto,
+  'A55319':m55319_auto,
+  'A55983':m55983_auto,
+  'A56568':m56568_auto,
+  'A56627':m56627_auto,
+  'A57347':m57347_auto,
+  'A57382':m57382_auto,
+  'A57448':m57448_auto,
+  'A57608':m57608_auto,
+  'A57644':m57644_auto,
+  'A57761':m57761_auto,
+  'A59631':m59631_auto,
+  'A59632':m59632_auto,
+  'A59715':m59715_auto,
+  'A59948':m59948_auto,
+  'A60450':m60450_auto,
+  'A61111':m61111_auto,
+  'A61237':m61237_auto,
+  'A61329':m61329_auto,
+  'A63257':m63257_auto,
+  'A63279':m63279_auto,
+  'A63600':m63600_auto,
+  'A63663':m63663_auto,
+  'A63922':m63922_auto,
+  'A64383':m64383_auto,
+  'A64396':m64396_auto,
+  'A64754':m64754_auto,
+  'A64867':m64867_auto,
+  'A65350':m65350_auto,
+  'A65898':m65898_auto,
+  'A66685':m66685_auto,
+  'A66876':m66876_auto,
+  'A66985':m66985_auto,
+  'A67415':m67415_auto,
+  'A67418':m67418_auto,
+  'A67779':m67779_auto,
+  'A67785':m67785_auto,
+  'A67806':m67806_auto,
+  'A67999':m67999_auto,
+  'A68042':m68042_auto,
+  'A68103':m68103_auto,
+  'A68120':m68120_auto,
+  'A68242':m68242_auto,
+  'A68674':m68674_auto,
+  'A68894':m68894_auto,
+  'A68960':m68960_auto,
+  'A69116':m69116_auto,
+  'A69642':m69642_auto,
+  'A70003':m70003_auto,
+  'A70442':m70442_auto,
+  'A70681':m70681_auto,
+  'A71368':m71368_auto,
+  'A71681':m71681_auto,
+  'A71925':m71925_auto,
+  'A71990':m71990_auto,
+  'A72018':m72018_auto,
+  'A72372':m72372_auto,
+  'A72631':m72631_auto,
+  'A72652':m72652_auto,
+  'A73298':m73298_auto,
+  'A73679':m73679_auto,
+  'A73766':m73766_auto,
+  'A74395':m74395_auto,
+  'A74865':m74865_auto,
+  'A75073':m75073_auto,
+  'A75138':m75138_auto,
+  'A75630':m75630_auto,
+  'A75961':m75961_auto,
+  'A76276':m76276_auto,
+  'A76595':m76595_auto,
+  'A77893':m77893_auto,
+  'A77899':m77899_auto,
+  'A78086':m78086_auto,
+  'A78099':m78099_auto,
+  'A78355':m78355_auto}
+
+method_list.extend(automethods.keys())
+
 ### Definition and parsing of arguments
 parser = argparse.ArgumentParser(description='Energy sampling of a (periodic) solid system with an added cation on the grid. Methods: (PBE/PBE-GTH/DZVP-MOLOPT-SR-GTH), Forcefields (Scholl et al)') 
 parser.add_argument('file', metavar='filename', type=str, action='store', help="Name of the cif-file containing the structure, without sample atom/ion.")
@@ -158,15 +251,15 @@ else:
 
 
 ### Set the directories and relted/relevant environment vars
-#calc_dir = './UCS_CALC/' + calc_name
-calc_dir = './ucs_out_mel_data/' + calc_name
+#calc_dir = './UCS_CALCS_s0.4/' + calc_name
+#calc_dir = './ucs_out_mel_data/' + calc_name
 work_dir = '.'
 
 #CP2K.command = "env OMP_NUM_THREADS=32 srun cp2k_shell.psmp"
 CP2K.command = "env OMP_NUM_THREADS=4 cp2k_shell"   ## Should be the same / H
-if not os.path.isdir(Path(calc_dir)):
-    os.mkdir(calc_dir)                ## Might be better later to export these in terminal bash script /H
-os.environ['UCS_CALCULATION_DIR'] = calc_dir  #'./LTA_lammps_ff_grid_test' #./LTA4A_reduced_grid_gen'
+#if not os.path.isdir(Path(calc_dir)):
+#    os.mkdir(calc_dir)                ## Might be better later to export these in terminal bash script /H
+#os.environ['UCS_CALCULATION_DIR'] = calc_dir  #'./LTA_lammps_ff_grid_test' #./LTA4A_reduced_grid_gen'
 os.environ['UCS_WORK_DIR'] = work_dir
 os.environ['OMP_NUM_THREADS'] = '4'
 
@@ -613,6 +706,9 @@ elif method == '73679':
     energies = sampler.calculate_energies(
             method=struct_73679_ff, atom=atom, exploit_symmetry=use_sym)
 
+elif method in automethods.keys():
+    energies = sampler.calculate_energies(
+            method=automethods[method], atom=atom, exploit_symmetry=use_sym)
 else:
     print("No default method defined yet.")
     raise Exception('No method.')
