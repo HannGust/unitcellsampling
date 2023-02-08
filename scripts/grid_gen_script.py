@@ -35,8 +35,10 @@ import argparse
 import numpy as np
 import math as ma
 
-from unitcellsampling.preparatory_fcns import unitcell_to_supercell_frac_coords
-from unitcellsampling.preparatory_fcns import remove_nonframework_cations_fancy
+from unitcellsampling.preparatory_fcns import unitcell_to_supercell_frac_coords, \
+                                              remove_nonframework_cations_fancy, \
+                                              compute_req_supercells
+
 # Defaults
 
 # Last update: 
@@ -237,6 +239,7 @@ else:
         true_spacing = (a/nx, b/ny, c/nz)
         print('Desired spacing: ', (spacing_x, spacing_y, spacing_z),' True spacing: ', true_spacing)
 
+print("vdW cutoff factor: ", args.vdw)
 
 ### End of parsing of arguments
 
@@ -656,78 +659,149 @@ def structure_54189_ff_manually_coded_ALTERED_CUTOFF(atoms: ase.Atoms):
 
 #####
 
-#lgps = ase.io.read(Path(indir, infile))
 
-sampler = sample.UnitCellSampler(lgps)
-sampler.generate_grid_vectors(n_frac=(nx, ny, nz), vdw_scale=args.vdw)
+
+
+#####################################################################
+# Create supercell from unitcell depending on cutoff !!!
+####################################################################
+# This codeblock is taken from custom_lammps_grid_gen.py
+
+# Metainfo: lgps = unitcell atoms object whose sampling atoms have been removed if desired
+#           sampler = UnitcellSampler object for the unitcell
+
+# First construct supercell
+cutoff = 12.5 # Force cutoff in Å
+print("Force cutoff used to determine supercell size: ", cutoff)
+num_cells = compute_req_supercells(lgps, cutoff)
+
+print("num_cells in supercell: ", num_cells, (num_cells,)*3)
+
+supercell_from_unitcell_wo_ions = ase.build.make_supercell(
+            lgps,
+            np.diag((num_cells, num_cells, num_cells)), wrap=True
+            )
+
+print("supercell from uc params: ", supercell_from_unitcell_wo_ions.get_cell_lengths_and_angles())
+print("supercell from uc cell: ", supercell_from_unitcell_wo_ions.get_cell())
+
+print("\n")
+print("Spacegroup, unitcell: ", ase.spacegroup.get_spacegroup(lgps, 1.0e-6))
+print("Spacegroup, supercell: ", ase.spacegroup.get_spacegroup(supercell_from_unitcell_wo_ions, 1.0e-6))
+
+# "Middle" unit cell (we don't need this though, since pbc)
+#uc_indices = [int((i//2)-1) if i % 2 == 0 else int((i-1)//2) for i in num_cells]
+uc_indices = (0, 0, 0)
+
+
+# Now generate grid for unitcell:
+unitcell_ucs = sample.UnitCellSampler(lgps) # DONE
+unitcell_grid, unitcell_included = unitcell_ucs.generate_grid_vectors((nx, ny, nz), vdw_scale=args.vdw) # DONE
+
+unitcell_grid = unitcell_grid.reshape(-1,3) # DONE
+unitcell_included = unitcell_included.reshape(-1) # DONE
+
+# Convert to fractional coordinates, and convert to supercell grid
+
+print("Shape check, grid: ", np.array(unitcell_grid).shape, np.array(unitcell_grid).T.shape) # DONE
+unitcell_frac_grid = np.linalg.solve(np.array(lgps.get_cell()).T, np.array(unitcell_grid).T).T # DONE
+
+print("unitcell frac grid shape: ", unitcell_frac_grid.shape) #DONE
+supercell_frac_grid = unitcell_to_supercell_frac_coords(unitcell_frac_grid[unitcell_included], (num_cells,)*3, unitcell_ind=(0,0,0)) #DONE
+
+# Convert to cartesian supercell grid
+supercell_cart_grid = supercell_frac_grid @ np.array(supercell_from_unitcell_wo_ions.get_cell()) # DONE
+print(type(supercell_cart_grid)) # DONE
+
+
+#######################################################################
+
+## Old version of grid_gen_script.py:
+#sampler = sample.UnitCellSampler(lgps)
+#sampler.generate_grid_vectors(n_frac=(nx, ny, nz), vdw_scale=args.vdw)
+#sampler.spacegroup = args.sg # Set spacegroup for the sampler
+
+# New, supercell sampler
+sampler = sample.UnitCellSampler(supercell_from_unitcell_wo_ions) # DONE
+sampler.n_frac =(nx, ny, nz)
 sampler.spacegroup = args.sg # Set spacegroup for the sampler
 
 print("Spacegroup input: ", args.sg)
 print("Symmetry: ", use_sym)
+
+
 if method == 'pbe':
     # For DFT:
-    energies = sampler.calculate_energies(
+    energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
         method=dft_pbe, atom=atom, exploit_symmetry=use_sym)
 
 elif method == 'lammps_lj':
     # For ForceField TEST, simple lj:
-    energies = sampler.calculate_energies(
+    energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
         method=lammps_lj, atom=atom, exploit_symmetry=use_sym)
 
 elif method == 'lammps_lj_coul':
     # For ForceField test, simple lj + electrostatics with Ewald:
-    energies = sampler.calculate_energies(
+    energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
         method=lammps_lj_coul, atom=atom, exploit_symmetry=use_sym)
 
 elif method == 'ff_boulfelfel':
     # For ForceField (Boulfelfel et al, 2021):
-    energies = sampler.calculate_energies(
+    energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
         method=lammps_ff_boulfelfel, atom=atom, exploit_symmetry=use_sym)
 
 elif method == 'ff_boulfelfel_buck':
     # For ForceField (Boulfelfel et al, 2021), but only the Buckingham part:
-    energies = sampler.calculate_energies(
+    energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
         method=lammps_ff_boulfelfel_buck, atom=atom, exploit_symmetry=use_sym)
 
 elif method == 'ff_garcia_sanches':
     # For ForceField (Garcia-Sanches et al, 2009):
-    energies = sampler.calculate_energies(
+    energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
         method=lammps_ff_garcia_sanches, atom=atom, exploit_symmetry=use_sym)
 
 elif method == 'ase_lj':
-    energies = sampler.calculate_energies(
+    energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
         method=ase_lj, atom=atom, exploit_symmetry=use_sym)
 
 elif method == '54189':
-    energies = sampler.calculate_energies(
+    energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
             method=structure_54189_ff_manually_coded_ALTERED_CUTOFF, atom=atom, exploit_symmetry=use_sym)
 
 elif method == '73679':
-    energies = sampler.calculate_energies(
+    energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
             method=struct_73679_ff, atom=atom, exploit_symmetry=use_sym)
 
 elif method in automethods.keys():
-    energies = sampler.calculate_energies(
+    energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
             method=automethods[method], atom=atom, exploit_symmetry=use_sym)
 else:
     print("No default method defined yet.")
     raise Exception('No method.')
 
-print("Included grid vectors shape: ", sampler.included_grid_vectors.shape)
+print("Included grid vectors shape: ", unitcell_ucs.included_grid_vectors.shape)
+
+##
+fill_value = np.nan_to_num(np.inf)
+energies_full = np.full(unitcell_included.shape, fill_value=fill_value, dtype=np.float64)
+print("unitcell_included", unitcell_included, np.sum(unitcell_included))
+energies_full[unitcell_included] = energies 
+##
+
 cube_filename = ".".join((calc_name, 'cube'))
 xsf_filename = ".".join((calc_name, 'xsf'))
 print()
 #print(*np.array2string(energies.reshape((len(energies),1)), formatter={"float_kind":lambda x: "%.7f" % x }))
-for row in energies:
+for row in energies_full:
     print(row)
 
 
 with open(cube_filename, 'w') as fp:
-    write_cube(fp,  lgps, data=energies.reshape(
-        sampler.included_grid_vectors.shape))
+    write_cube(fp,  lgps, data=energies_full.reshape(
+        unitcell_ucs.included_grid_vectors.shape))
 
 if xsf_output:
     with open(xsf_filename, 'w') as fp:
-        write_xsf(fp,  lgps, data=energies.reshape(
-            sampler.included_grid_vectors.shape))
+        write_xsf(fp,  lgps, data=energies_full.reshape(
+            unitcell_ucs.included_grid_vectors.shape))
 
