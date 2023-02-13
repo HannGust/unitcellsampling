@@ -12,7 +12,7 @@ import sys
 # A routine for testing symmetry operations on a primitive cell
 
 
-def pymatgen_structure_to_ase_atoms(structure: pymatgen.core.structure):
+def pymatgen_structure_to_ase_atoms(structure: pmg.core.structure):
     pass
 
 
