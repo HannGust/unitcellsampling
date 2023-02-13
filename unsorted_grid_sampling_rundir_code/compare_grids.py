@@ -68,6 +68,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("files", type=str, nargs='+', help="Give the list of files from which to read the grids that should be compared. Observe: The grids needs to contain common coordinates!")
     parser.add_argument("-o", "--out", action="store_true", help="If given, writes the difference and absolute difference (grid_1 - grid_2) at the common coordinates into cube files.")
+    parser.add_argument("--cc", "--customcube", action="store_true", help="Whetherto use a custom cube file reader, instead of ase's cube reader which is the default.")
 
     args = parser.parse_args()
     
@@ -79,7 +80,14 @@ if __name__ == '__main__':
         
     for i,infile in enumerate(args.files):
         print(infile)
-        (atoms, grid) = custom_read_cube(infile)
+        if args.cc:
+            (atoms, grid) = custom_read_cube(infile)
+        else:
+            with open(infile, "r") as cf:
+                cube_cont = read_cube(cf)
+                atoms = cube_cont["atoms"]
+                grid = cube_cont["data"]
+
         grids.append(grid)
         print("Grid shape: ", grid.shape)
         nx,ny,nz = np.array(grid).shape

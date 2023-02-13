@@ -1,6 +1,6 @@
 import numpy as np
 import ase, ase.io
-from ase.io.cube import read_cube
+from ase.io.cube import read_cube, write_cube
 from ase.io.cif import read_cif
 from ase.io.xsf import read_xsf
 import argparse
@@ -19,7 +19,10 @@ if args.grid1[-3:] == "cif":
 elif args.grid1[-3:] == "xsf":
      atoms1, grid1 = read_xsf(args.grid1, read_data=True)
 else:
-     atoms1, grid1 = read_cube(args.grid1, read_data=True)
+     with open(args.grid1, 'r') as g1:
+         grid1_content = read_cube(g1, read_data=True)
+         atoms1 = grid1_content["atoms"]
+         grid1 = grid1_content["data"]
 
 
 if args.grid2[-3:] == "cif":
@@ -27,7 +30,16 @@ if args.grid2[-3:] == "cif":
 elif args.grid2[-3:] == "xsf":
      atoms2, grid2 = read_xsf(args.grid2, read_data=True)
 else:
-     atoms2, grid2 = read_cube(args.grid2, read_data=True)
+     with open(args.grid1, 'r') as g1:
+         grid2_content = read_cube(args.grid2, read_data=True)
+         atoms2 = grid2_content["atoms"]
+         grid2 = grid2_content["data"]
+    
 
+diff_grid = grid1 - grid2
+abs_diff_grid = np.abs(diff_grid)
+
+with open("diff_grid.cube", 'w') as fp:
+    
 
 
