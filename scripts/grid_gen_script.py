@@ -153,7 +153,7 @@ parser.add_argument('-s', '--space', type=float, action='store', default=None, n
 parser.add_argument('--vdw', type=float, action='store', default=1.0, help="Specify the fraction of the van der Waals radius that should be excluded from the sampled volume around each atom in thei host structure.")
 parser.add_argument('--nosym', action='store_false', help="Turns off usage of spacegroup symmetry. Default is to apply symmetry to save the number of required calculations.")
 parser.add_argument('--ra', action='store_true', help="Specify whether to remove all atoms of the type that is used for sampling from the structure, before doing the sampling.")
-parser.add_argument('--sg', type=int, default=None, action='store', help="Manually specify the spacegroup to use for symmetry. Default is None, in which case spacegroup will be automatically determined from the stucture.")
+parser.add_argument('--sg', type=int, default=None, action='store', help="Manually specify the spacegroup to use for symmetry. Default is None, in which case spacegroup will be automatically determined from the structure.")
 
 args = parser.parse_args()
 
@@ -724,7 +724,9 @@ print(type(supercell_cart_grid)) # DONE
 # New, supercell sampler
 sampler = sample.UnitCellSampler(supercell_from_unitcell_wo_ions) # DONE
 sampler.n_frac =(nx, ny, nz)
-sampler.spacegroup = args.sg # Set spacegroup for the sampler
+
+if args.sg:
+    sampler.spacegroup = args.sg # Set spacegroup for the sampler
 
 print("Spacegroup input: ", args.sg)
 print("Symmetry: ", use_sym)
