@@ -25,9 +25,13 @@ class UnitCellSampler:
         self.grid_vectors = None
         self.included_grid_vectors = None
         self.n_frac = None
-
         self.spacegroup = None # / H
-        self.bool_sample_subgrid = False # / H
+
+        # To maybe be introduced:
+        self.supercell = None # / H
+        self.unitcell = None # / H
+        self.n_supercell = None # / H
+        self.n_sim_cell = None # / H
 
     def set_spacegroup(self, sp_number: int):
         self.spacegroup = gemmi.find_spacegroup_by_number(sp_number)
@@ -106,7 +110,11 @@ class UnitCellSampler:
                     get_spacegroup(self.atoms))
             print("UCS: Gemmi spacegroup from sturcture: ", gemmi_spgrp_from_structure)
             print("UCS: Gemmi spacegroup internal: ", self.spacegroup)
-            #
+            #i
+
+            if self.n_supercell is None:
+                self.n_supercell = (1, 1, 1)
+            
 
         grid_points = np.array(grid_points)
 
@@ -126,11 +134,12 @@ class UnitCellSampler:
                 continue
 
             if exploit_symmetry:
+                # TODO: Fix this indexing routine, so that it works with supercells
                 grid_point_index = get_fractional_coords(
                     grid_point, self.atoms.cell[:])
-                grid_point_index[0] = grid_point_index[0]*self.n_frac[0]
-                grid_point_index[1] = grid_point_index[1]*self.n_frac[1]
-                grid_point_index[2] = grid_point_index[2]*self.n_frac[2]
+                grid_point_index[0] = grid_point_index[0]*self.n_frac[0]*self.n_supercell[0]
+                grid_point_index[1] = grid_point_index[1]*self.n_frac[1]*self.n_supercell[1]
+                grid_point_index[2] = grid_point_index[2]*self.n_frac[2]*self.n_supercell[2]
                 grid_point_index = np.array(
                     np.around(grid_point_index), dtype=np.int)
 

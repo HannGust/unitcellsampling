@@ -723,7 +723,8 @@ print(type(supercell_cart_grid)) # DONE
 
 # New, supercell sampler
 sampler = sample.UnitCellSampler(supercell_from_unitcell_wo_ions) # DONE
-sampler.n_frac =(nx, ny, nz)
+sampler.n_frac = (nx, ny, nz)
+sampler.n_supercell = (num_cells,)*3 
 
 if args.sg:
     sampler.spacegroup = args.sg # Set spacegroup for the sampler
