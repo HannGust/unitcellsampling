@@ -3,6 +3,7 @@ import pymatgen as pmg
 from pymatgen.core import Structure, Lattice
 import pymatgen.symmetry as pmgsym
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
+from pymatgen.analysis.structure_matcher import StructureMatcher
 
 import ase
 import ase.io
@@ -46,7 +47,7 @@ def main():
     # print(struct_from_file)
 
     # -> they yield the same file so just read from cif is best
-    print(struct == struct_from_file)
+    print("Is structure contructed Structure same as read from file: ", struct == struct_from_file)
 
     sg_analyzer = SpacegroupAnalyzer(struct_from_file)
 
@@ -69,15 +70,50 @@ def main():
     print(lattice_type)
     print(crys_sys)
 
+    # Naive comparisons:
+    print("Naive comparisons of the structures:")
+    print("------------------------------------")
     print("Is found primitive the same as original?: ",
           found_primitive == struct_from_file)
+    print("Is found conventional the same as original?: ",
+          conventional_struct == struct_from_file)
+    print("Is primitive same as conventional?: ",
+           found_primitive == conventional_struct)
+    print("------------------------------------")
 
-    found_primitive.to(filename="Li2ZnGe_pmg_found_primitive.cif")
-    conventional_struct.to(filename="Li2ZnGe_conventional.cif")
+    print()
+    print()
+    print("Pymatgen StructureMatcher comparisons: ")
+    ltol=0.01
+    stol=0.01
+    angletol=1
+    matcher=StructureMatcher(ltol=ltol, stol=stol, angle_tol=angletol)
+    print("Parameters: frac length tol, itol="+str(ltol)+" ; site tolerance, stol="+str(stol)+" ; angle_tol="+str(angletol))
+    print("--------------------------------------")
+    print("Is found primitive the same as original?: ",
+          matcher.fit(found_primitive, 
+                               struct_from_file, 
+                               symmetric=True))
+    print("Is found conventional the same as original?: ",
+          matcher.fit(conventional_struct, 
+                      struct_from_file,
+                      symmetric=True))
+    print("Is primitive same as conventional?: ",
+           matcher.fit(found_primitive, 
+                       conventional_struct,
+                       symmetric=True))
+    print("--------------------------------------")
+
+    #primitive_filename = "Li2ZnGe_pmg_found_primitive.cif"
+    #conventional_filename = "Li2ZnGe_conventional.cif"
+    primitive_filename = "pmg_found_primitive.cif"
+    conventional_filename = "pmg_conventional.cif"
+    found_primitive.to(filename=primitive_filename)
+    conventional_struct.to(filename=conventional_filename)
 
     # Atoms in the primitive unit cell seen inside the conventional unit cell
 
-    primitive_cell_within_conventional_cell = ase.Atoms("Li9ZnGe",
+    """primitive_cell_within_conventional_cell = ase.Atoms("Li9ZnGe",
                                                         scaled_positions=[[0.0, 0.0, 0.0],
                                                                           [0.0, 0.5,
                                                                               0.5],
@@ -104,7 +140,7 @@ def main():
                                                         )
 
     ase.io.write("Li2ZnGe_primitive_within_convetional.cube",
-                 primitive_cell_within_conventional_cell)
+                 primitive_cell_within_conventional_cell)"""
 
     return
 
