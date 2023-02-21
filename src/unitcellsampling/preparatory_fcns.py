@@ -31,7 +31,7 @@ def remove_nonframework_cations_fancy(atoms:Atoms, cation:Atom):
 
 
 # Presently, I do not need this. The supercells are already included in the input.
-def compute_req_supercells(atoms, cutoff):
+def compute_req_supercells(atoms, cutoff, isotropic_sc=False):
     assert isinstance(atoms, (ase.Atoms, tuple, list, np.ndarray)), "atoms needs to be instance of ase.Atoms, tuple, list or ndarray."
     
     if isinstance(atoms, ase.Atoms):
@@ -59,28 +59,34 @@ def compute_req_supercells(atoms, cutoff):
                 abs(xi_b[-1]) * np.linalg.norm(ac), 
                 abs(xi_c[-1]) * np.linalg.norm(ab)
                 )
-                
-    min_dist = np.min(orth_dist)
-    print(orth_dist)
-    print(min_dist)
-    
-    # we need that cutoff < (min_dist_in_supercell/2)
-    # If we hve a supercell of n unitcell along every edge,
-    # the min distance would increase n times.
-    # We need to determine smallest n such that n*(min_dist_in_unitcell/2) > cutoff
-    n = int((cutoff // (min_dist/2)) + 1)
-    
+
+
+    if isotropic_sc:                
+        min_dist = np.min(orth_dist)
+        print(orth_dist)
+        print(min_dist)
+        
+        # we need that cutoff < (min_dist_in_supercell/2)
+        # If we hve a supercell of n unitcell along every edge,
+        # the min distance would increase n times.
+        # We need to determine smallest n such that n*(min_dist_in_unitcell/2) > cutoff
+        n = int((cutoff // (min_dist/2)) + 1)
+       
+        nx, ny, nz = n, n, n  
+    else:
+        nx = int((cutoff // (orth_dist[0]/2))+ 1)
+        ny = int((cutoff // (orth_dist[1]/2))+ 1)
+        nz = int((cutoff // (orth_dist[2]/2))+ 1)
+
     # Extra check/control
-    combs = np.array(list(it.product((0,1,-1), repeat=3)))
-    assert (combs[0] == np.array((0, 0, 0))).all(), "Something went wrong. First row of combs is not [0, 0, 0]."
-    combs = combs[1:]
-    vector_combs = combs @ cell
-    distances = np.linalg.norm(vector_combs, 2, axis=1)
-    min_distance = np.min(distances)
-    print("Min distance check: ", min_distance)
-
-    return n
-
+    #combs = np.array(list(it.product((0,1,-1), repeat=3)))
+    #assert (combs[0] == np.array((0, 0, 0))).all(), "Something went wrong. First row of combs is not [0, 0, 0]."
+    #combs = combs[1:]
+    #vector_combs = combs @ cell
+    #distances = np.linalg.norm(vector_combs, 2, axis=1)
+    #min_distance = np.min(distances)
+    #print("Min distance check: ", min_distance)
+    return (nx, ny, nz)
 
 
 def make_supercell(atoms:Atoms, size:tuple):
