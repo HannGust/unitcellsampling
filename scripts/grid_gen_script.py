@@ -154,6 +154,8 @@ parser.add_argument('--vdw', type=float, action='store', default=1.0, help="Spec
 parser.add_argument('--nosym', action='store_false', help="Turns off usage of spacegroup symmetry. Default is to apply symmetry to save the number of required calculations.")
 parser.add_argument('--ra', action='store_true', help="Specify whether to remove all atoms of the type that is used for sampling from the structure, before doing the sampling.")
 parser.add_argument('--sg', type=int, default=None, action='store', help="Manually specify the spacegroup to use for symmetry. Default is None, in which case spacegroup will be automatically determined from the structure.")
+parser.add_argument('--guc', '--gemmiunitcell', action='store_true', help="If given, will pass unitcell information to gemmi. This is currently only for testing, to see if symmetry will be better handled in certain cases with primitive unitcells. TEST.")
+
 
 args = parser.parse_args()
 
@@ -728,6 +730,10 @@ sampler.n_supercell = (num_cells,)*3
 
 if args.sg:
     sampler.spacegroup = args.sg # Set spacegroup for the sampler
+
+if args.guc:
+    print("Passing unitcell information (input structure) to UCS and gemmi.")
+    sampler.gemmi_unitcell = lgps
 
 print("Spacegroup input: ", args.sg)
 print("Symmetry: ", use_sym)

@@ -27,6 +27,7 @@ class UnitCellSampler:
         self.n_frac = None
         self.spacegroup = None # / H
 
+        self.gemmi_unitcell = None # IN EXPERIMENTAL TESTING STAGE!!! /H
         # To maybe be introduced:
         self.supercell = None # / H
         self.unitcell = None # / H
@@ -114,7 +115,13 @@ class UnitCellSampler:
 
             if self.n_supercell is None:
                 self.n_supercell = (1, 1, 1)
-            
+
+            # gemmi unitcell TESTING! WARNING: EXPERIMENTAL CODE!!!
+            if self.gemmi_unitcell:
+                  gemmi_uc = gemmi.UnitCell(*self.atoms.cell.cellpar())
+                  bool_grid.set_unit_cell(gemmi_uc)
+                  energies_grid.set_unit_cell(gemmi_uc)
+            #
 
         grid_points = np.array(grid_points)
 
