@@ -87,7 +87,7 @@ def main():
     ltol=0.01
     stol=0.01
     angletol=1
-    matcher=StructureMatcher(ltol=ltol, stol=stol, angle_tol=angletol)
+    matcher=StructureMatcher(ltol=ltol, stol=stol, angle_tol=angletol, primitive_cell=False)
     print("Parameters: frac length tol, itol="+str(ltol)+" ; site tolerance, stol="+str(stol)+" ; angle_tol="+str(angletol))
     print("--------------------------------------")
     print("Is found primitive the same as original?: ",

@@ -61,7 +61,42 @@ def compare_txt_lists(file1, file2, out=False):
 
     return (diff, abs_diff, max_abs_diff, rmsd)
 
+def compute_diff_grid(grid1, grid2):
+    """Calculates the difference between two grids."""
+    grid1 = np.array(grid1)
+    grid2 = np.array(grid2)
+    assert grid1.shape == grid2.shape, "Grids must have the same shape!"
 
+    return np.subtract(grid1, grid2)
+
+def compute_abs_diff_grid(grid1, grid2):
+    return np.abs(compute_diff_grid(grid1, grid2))
+
+def compute_grid_rmsd(grid1, grid2):
+    return np.sqrt(np.mean(np.square(compute_diff_grid(grid1, grid2))))
+
+def compute_grid_rel_error(grid1, grid2):
+    """Computes number of NaNs, Inf and otherwise computes relative difference between grids."""
+    rel_err_grid = np.empty(grid1.shape).fill(np.nan)
+    diff_grid = compute_diff_grid(grid1, grid2)
+    nonzero_grid1 = grid1[grid1 != 0] 
+    rel_err_grid[grid1 != 0] = np.abs(diff_grid[grid1 != 0]/grid1[grid1 != 0])
+
+    assert rel_err_grid.shape == grid1.shape, "Relative error grid has different shape from input grid! Something went wrong!"
+
+    return rel_err_grid
+
+def compare_grids(grid1, grid2):
+    assert len(grid1.shape) == 1 or len(grid1.shape) == 3, "Grid 1 must be either of shape (n,) or (n,m,l)."
+    assert len(grid2.shape) == 1 or len(grid2.shape) == 3, "Grid 2 must be either of shape (n,) or (n,m,l)."   
+    assert grid1.shape == grid2.shape, "Grids must have the same shape."
+
+    diff_grid = compute_diff_grid(grid1, grid2)
+    abs_diff_grid = compute_abs_diff_grid(grid1, grid2)
+    rel_err_grid = compute_grid_rel_error(grid1, grid2) 
+    rmsd = compute_grid_rmsd(grid1, grid2)
+
+    return (diff_grid, abs_diff_grid, rel_err_grid, rmsd)
 
 
 if __name__ == '__main__':
@@ -95,7 +130,7 @@ if __name__ == '__main__':
         ny_lst.append(ny)
         nz_lst.append(nz)
         grid_coords.append((list(it.product(np.linspace(0, 1, nx, endpoint=False), np.linspace(0, 1, ny, endpoint=False), np.linspace(0, 1, nz, endpoint=False)))))
-        print('First three grid coords: ', grid_coords[i][0:3])
+        #print('First three grid coords: ', grid_coords[i][0:3])
         #print(len(grid_coords[i]))
         # for now, assume its grids within the same unit cell
         
@@ -126,13 +161,10 @@ if __name__ == '__main__':
     round((ny_lst[1]/gy)),
     round((nz_lst[0]/gz)),
     round((nz_lst[1]/gz)))
-    
-    
-    
+     
     grids_within_precision = 1.0e-1
     grids_within_rel_precision = 1.0e-06
     coord_num_decimals = 8
-    
     
     
     shift = grids[0][0,0,0] - grids[1][0,0,0]
@@ -167,16 +199,18 @@ if __name__ == '__main__':
     print('')
     print('MAX(ELEMENTWISE_ABSOLUTE_ERROR) = ', np.max(np.abs(grid_1-grid_2)))
     print('')
-    
+    print('AVERAGE(ELEMENTWISE_ABSOLUTE_ERROR) = ', np.mean(np.abs(grid_1-grid_2)))
     print('')
     # Relative error:
-    if ((np.abs((grid_1-grid_2)/grid_1) <= grids_within_rel_precision).all()): # checks for relative error below threshold
+    if ((np.abs((grid_1-grid_2)[grid_1 != 0]/grid_1[grid_1 != 0]) <= grids_within_rel_precision).all()): # checks for relative error below threshold
         print('The grids are identical within elementwise RELATIVE ERROR of: ', grids_within_rel_precision)
     else:
         print('The grids are different! In the following sense:  MAX(ELEMENTWISE_RELATIVE_ERROR) > ', grids_within_rel_precision)
     
     print('')
-    print('MAX(ELEMENTWISE_RELATIVE_ERROR) = ', np.max(np.abs((grid_1-grid_2)/grid_1)))
+    print('MAX(ELEMENTWISE_RELATIVE_ERROR) = ', np.max(np.abs((grid_1-grid_2)[grid_1 != 0]/grid_1[grid_1 != 0])))
+    print('')
+    print('AVERAGE(ELEMENTWISE_RELATIVE_ERROR) = ', np.mean(np.abs((grid_1-grid_2)[grid_1 != 0]/grid_1[grid_1 != 0])))
     
     print('')
     print('')
