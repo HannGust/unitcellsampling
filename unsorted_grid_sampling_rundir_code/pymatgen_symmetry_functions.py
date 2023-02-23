@@ -24,6 +24,98 @@ def test_sym_op(atoms: ase.Atoms):
 # Testing the pymatgen symmetry functions
 # and the structure Li2ZnGe (structure no. 54189)
 
+def LiZnGe_54189_primitive_cell_within_conventional_cell():
+    """ Writes the atoms in the primitive unit cell seen inside the 
+        conventional unit cell to a cube file, to see the difference
+        and relation between the conventional and primitive cells,
+        for the 54189 (Li2ZnGe) structure.
+    """
+
+    primitive_cell_within_conventional_cell = ase.Atoms("Li9ZnGe",
+                                            scaled_positions=
+                                           [[0.0, 0.0, 0.0],
+                                            [0.0, 0.5, 0.5],
+                                            [0.5, 0.0, 0.5],
+                                            [0.5, 0.5, 0.0],
+                                            [1.0, 0.5, 0.5],
+                                            [0.5, 1.0, 0.5],
+                                            [0.5, 0.5, 1.0],
+                                            [1.0, 1.0, 1.0],
+                                            [0.25, 0.25, 0.25],
+                                            [0.75, 0.75, 0.75],
+                                            [0.5, 0.5, 0.5]],
+                                            cell=np.diag(
+                                            [6.164957, 6.164957, 6.164957]),
+                                            pbc=False
+                                                       )
+
+    ase.io.write("Li2ZnGe_primitive_within_convetional.cube",
+                 primitive_cell_within_conventional_cell)
+    return
+
+
+def is_conventional_cell(unitcell, ltol=1.0E-05, stol=1.0E-05, angle_tol=0.1):
+    """Uses pymatgens structure matcher to check whether the given structure
+       (unitcell) is equivalent (up to some tolerance) to the conventional 
+       standard cell that pymatgen can construct from it. """
+
+    assert isinstance(unitcell, (ase.Atoms, pmg.core.Structure)), "Error: unitcell must be ase.Atoms object ot pymatgen.core.Structure object" 
+
+    if isinstance(unitcell, ase.Atoms):
+        f_atomic_coords = unitcell.get_scaled_positions()
+        atomic_symb = unitcell.get_chemical_symbols()
+        cell_params = unitcell.cell.cellpar()
+
+        lattice = Lattice.from_parameters(*cell_params)
+        struct = Structure(lattice, atomic_symb, f_atomic_coords)
+    else:
+        struct = unitcell
+    
+    # Initialize the spacegroup analyzer to find conventional cell of structure
+    spgrp_analyzer = SpacegroupAnalyzer(struct)
+    conv_cell = spgrp_analyzer.get_conventional_standard_structure()
+    
+    # Define the structure matcher
+    structure_matcher = StructureMatcher(ltol=ltol,
+                                         stol=stol,
+                                         angle_tol=angle_tol,
+                                         primitive_cell=False) 
+
+    return structure_matcher.fit(struct, conv_cell, symmetric=True)
+
+
+def is_primitive_cell(unitcell, ltol=1.0E-05, stol=1.0E-05, angle_tol=0.1):
+    """Uses pymatgens structure matcher to check whether the given structure
+       (unitcell) is equivalent (up to some tolerance) to the primitive
+       cell that pymatgen can construct from it. """
+
+    assert isinstance(unitcell, (ase.Atoms, pmg.core.Structure)), "Error: unitcell must be ase.Atoms object ot pymatgen.core.Structure object" 
+
+    if isinstance(unitcell, ase.Atoms):
+        f_atomic_coords = unitcell.get_scaled_positions()
+        atomic_symb = unitcell.get_chemical_symbols()
+        cell_params = unitcell.cell.cellpar()
+
+        lattice = Lattice.from_parameters(*cell_params)
+        struct = Structure(lattice, atomic_symb, f_atomic_coords)
+    else:
+        struct = unitcell
+    
+    # Initialize the spacegroup analyzer to find conventional cell of structure
+    spgrp_analyzer = SpacegroupAnalyzer(struct, symprec=0.01, angle_tolerance=0.1)
+    #prim_cell = spgrp_analyzer.find_primitive()
+    prim_cell = spgrp_analyzer.get_primitive_standard_structure()
+   
+    # Define the structure matcher
+    structure_matcher = StructureMatcher(ltol=ltol,
+                                         stol=stol,
+                                         angle_tol=angle_tol,
+                                         primitive_cell=False) 
+
+    return structure_matcher.fit(struct, prim_cell, symmetric=True)
+
+
+
 def main():
     if len(sys.argv) <= 1:
         raise Exception("Need an input.")
@@ -35,7 +127,7 @@ def main():
 
     f_atomic_coords = atoms.get_scaled_positions()
     atomic_symb = atoms.get_chemical_symbols()
-    cell_params = atoms.get_cell_lengths_and_angles()
+    cell_params = atoms.get_cell_lengths_and_angles() # atoms.cell.cellpar()
 
     lattice = Lattice.from_parameters(*cell_params)
     struct = Structure(lattice, atomic_symb, f_atomic_coords)
@@ -86,7 +178,7 @@ def main():
     print("Pymatgen StructureMatcher comparisons: ")
     ltol=0.01
     stol=0.01
-    angletol=1
+    angletol=0.1
     matcher=StructureMatcher(ltol=ltol, stol=stol, angle_tol=angletol, primitive_cell=False)
     print("Parameters: frac length tol, itol="+str(ltol)+" ; site tolerance, stol="+str(stol)+" ; angle_tol="+str(angletol))
     print("--------------------------------------")
@@ -104,6 +196,12 @@ def main():
                        symmetric=True))
     print("--------------------------------------")
 
+
+    print()
+    print()
+    print("results from is_conventional_cell(): ", is_conventional_cell(struct_from_file))
+    print("results from is_primitive_cell(): ", is_primitive_cell(struct_from_file))
+
     #primitive_filename = "Li2ZnGe_pmg_found_primitive.cif"
     #conventional_filename = "Li2ZnGe_conventional.cif"
     primitive_filename = "pmg_found_primitive.cif"
@@ -111,36 +209,6 @@ def main():
     found_primitive.to(filename=primitive_filename)
     conventional_struct.to(filename=conventional_filename)
 
-    # Atoms in the primitive unit cell seen inside the conventional unit cell
-
-    """primitive_cell_within_conventional_cell = ase.Atoms("Li9ZnGe",
-                                                        scaled_positions=[[0.0, 0.0, 0.0],
-                                                                          [0.0, 0.5,
-                                                                              0.5],
-                                                                          [0.5, 0.0,
-                                                                              0.5],
-                                                                          [0.5, 0.5,
-                                                                              0.0],
-                                                                          [1.0, 0.5,
-                                                                              0.5],
-                                                                          [0.5, 1.0,
-                                                                              0.5],
-                                                                          [0.5, 0.5,
-                                                                              1.0],
-                                                                          [1.0, 1.0,
-                                                                              1.0],
-                                                                          [0.25, 0.25,
-                                                                              0.25],
-                                                                          [0.75, 0.75,
-                                                                              0.75],
-                                                                          [0.5, 0.5, 0.5]],
-                                                        cell=np.diag(
-                                                            [6.164957, 6.164957, 6.164957]),
-                                                        pbc=False
-                                                        )
-
-    ase.io.write("Li2ZnGe_primitive_within_convetional.cube",
-                 primitive_cell_within_conventional_cell)"""
 
     return
 
