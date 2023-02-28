@@ -4,8 +4,15 @@
 
 from pathlib import Path
 from unitcellsampling import sample
+from unitcellsampling import symmetry
 import ase.io
 import ase
+from ase.spacegroup import get_spacegroup
+
+import pymatgen
+from pymatgen.core import Structure, Lattice
+from pymatgen.io.ase import AseAtomsAdaptor
+from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 
 # energy calcs
 from ase.calculators.lj import LennardJones as LJ
@@ -155,6 +162,7 @@ parser.add_argument('--nosym', action='store_false', help="Turns off usage of sp
 parser.add_argument('--ra', action='store_true', help="Specify whether to remove all atoms of the type that is used for sampling from the structure, before doing the sampling.")
 parser.add_argument('--sg', type=int, default=None, action='store', help="Manually specify the spacegroup to use for symmetry. Default is None, in which case spacegroup will be automatically determined from the structure.")
 parser.add_argument('--guc', '--gemmiunitcell', action='store_true', help="If given, will pass unitcell information to gemmi. This is currently only for testing, to see if symmetry will be better handled in certain cases with primitive unitcells. TEST.")
+parser.add_argument('--conv', '--conventional-cell', action='store_true', help="If given, will check whether unitcell is conventional cell, and if not, determine the conventioal cell base onthe input sturcture and then sample the found conventional cell instead.")
 
 
 args = parser.parse_args()
@@ -198,16 +206,35 @@ print("Input basename: ", input_basename)
 indir = input_file.parent
 infile =  input_file.name 
 
+
 # TODO: Change this reading to the full given path for infile??
 lgps = ase.io.read(Path(indir, infile))
+
+# Change the unitcell to the conventional cell if symmetry 
+# is used or if conv argument is specified
+# This is a bit convoluted as we may be able to use ase
+# directly I have realized now...
+if use_sym or args.conv:
+    if not symmetry.is_conventional_cell(lgps):
+        sg_analyzer = SpacegroupAnalyzer(AseAtomsAdaptor.get_structure(lgps)) 
+        conv_cell = sg_analyzer.get_conventional_standard_structure()
+        lgps = AseAtomsAdaptor.get_atoms(conv_cell)
+
 #atoms = ase.io.read(input_file) # Like so? 
+
 if args.ra:
     print("Removing sampling atoms", str(atom),"from structure.")
     atoms_temp = remove_nonframework_cations_fancy(lgps, ase.Atom(atom))
     lgps = atoms_temp
 
+if use_sym:
+    if args.sg:
+        spacegroup = args.sg
+    else:
+        spacegroup = get_spacegroup(lgps) 
 
 ## Set the number of points in the grid in each dimension (or equivalently, the mesh size)
+# TODO: If symmetr is used, check/determine nearest shape that is compatible with spacegroup
 if not args.space:
     if len(args.grid) == 1:
         nx,ny,nz = args.grid * 3
@@ -238,6 +265,11 @@ else:
 
         a,b,c = np.linalg.norm(lgps.get_cell()[0,:]), np.linalg.norm(lgps.get_cell()[1,:]), np.linalg.norm(lgps.get_cell()[2,:])
         nx,ny,nz = ma.ceil(a/spacing_x), ma.ceil(b/spacing_y), ma.ceil(c/spacing_z)
+        
+        if use_sym:
+            nx,ny,nz = symmetry.find_spacegroup_compatible_gridshape((nx,ny,nz), spacegroup, search_denser=True)
+            print("Determined grid spacing compatible with spacegroup.")
+
         true_spacing = (a/nx, b/ny, c/nz)
         print('Desired spacing: ', (spacing_x, spacing_y, spacing_z),' True spacing: ', true_spacing)
 
@@ -677,11 +709,11 @@ cutoff = 12.5 # Force cutoff in Å
 print("Force cutoff used to determine supercell size: ", cutoff)
 num_cells = compute_req_supercells(lgps, cutoff)
 
-print("num_cells in supercell: ", num_cells, (num_cells,)*3)
+print("num_cells in supercell: ", num_cells)
 
 supercell_from_unitcell_wo_ions = ase.build.make_supercell(
             lgps,
-            np.diag((num_cells, num_cells, num_cells)), wrap=True
+            np.diag(num_cells), wrap=True
             )
 
 print("supercell from uc params: ", supercell_from_unitcell_wo_ions.get_cell_lengths_and_angles())
@@ -709,7 +741,7 @@ print("Shape check, grid: ", np.array(unitcell_grid).shape, np.array(unitcell_gr
 unitcell_frac_grid = np.linalg.solve(np.array(lgps.get_cell()).T, np.array(unitcell_grid).T).T # DONE
 
 print("unitcell frac grid shape: ", unitcell_frac_grid.shape) #DONE
-supercell_frac_grid = unitcell_to_supercell_frac_coords(unitcell_frac_grid[unitcell_included], (num_cells,)*3, unitcell_ind=(0,0,0)) #DONE
+supercell_frac_grid = unitcell_to_supercell_frac_coords(unitcell_frac_grid[unitcell_included], num_cells, unitcell_ind=(0,0,0)) #DONE
 
 # Convert to cartesian supercell grid
 supercell_cart_grid = supercell_frac_grid @ np.array(supercell_from_unitcell_wo_ions.get_cell()) # DONE
@@ -726,7 +758,7 @@ print(type(supercell_cart_grid)) # DONE
 # New, supercell sampler
 sampler = sample.UnitCellSampler(supercell_from_unitcell_wo_ions) # DONE
 sampler.n_frac = (nx, ny, nz)
-sampler.n_supercell = (num_cells,)*3 
+sampler.n_supercell = num_cells 
 
 if args.sg:
     sampler.spacegroup = args.sg # Set spacegroup for the sampler
