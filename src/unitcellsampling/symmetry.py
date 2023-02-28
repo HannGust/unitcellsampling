@@ -85,8 +85,16 @@ def find_spacegroup_compatible_gridshape(grid_shape, spacegroup,
         
         current_grid_shape = tuple(np.array(current_grid_shape) 
                                    + np.array([1,1,1]) * increment_factor)
-        
-    return compatible_grid_shape
+    # Conversion into int-type
+    final_compatible_grid_shape = (int(compatible_grid_shape[0]),
+                                   int(compatible_grid_shape[1]),
+                                   int(compatible_grid_shape[2]))
+
+    # And check that it is indeed the same
+    assert (np.array(final_compatible_grid_shape) 
+            == np.array(compatible_grid_shape)).all(), "ERROR: Compatible grid shapes not equal after type conversion!"
+
+    return final_compatible_grid_shape
 
 
 def is_conventional_cell(unitcell, ltol=1.0E-05, stol=1.0E-05, angle_tol=0.1):
