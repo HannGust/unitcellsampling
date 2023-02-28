@@ -168,7 +168,7 @@ if __name__ == '__main__':
     
     
     shift = grids[0][0,0,0] - grids[1][0,0,0]
-    
+    print("shift (at [0,0,0] coodrinate):",shift) 
     grid_1 = grids[0][0:nx_lst[0]:round(nx_lst[0]/gx),0:ny_lst[0]:round(ny_lst[0]/gy),0:nz_lst[0]:round(nz_lst[0]/gz)]
     grid_2 = grids[1][0:nx_lst[1]:round(nx_lst[1]/gx),0:ny_lst[1]:round(ny_lst[1]/gy),0:nz_lst[1]:round(nz_lst[1]/gz)]
     grid_1 = grid_1 - shift
