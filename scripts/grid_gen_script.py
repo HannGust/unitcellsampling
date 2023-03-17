@@ -162,7 +162,7 @@ parser.add_argument('--nosym', action='store_false', help="Turns off usage of sp
 parser.add_argument('--ra', action='store_true', help="Specify whether to remove all atoms of the type that is used for sampling from the structure, before doing the sampling.")
 parser.add_argument('--sg', type=int, default=None, action='store', help="Manually specify the spacegroup to use for symmetry. Default is None, in which case spacegroup will be automatically determined from the structure.")
 parser.add_argument('--guc', '--gemmiunitcell', action='store_true', help="If given, will pass unitcell information to gemmi. This is currently only for testing, to see if symmetry will be better handled in certain cases with primitive unitcells. TEST.")
-parser.add_argument('--conv', '--conventional-cell', action='store_true', help="If given, will check whether unitcell is conventional cell, and if not, determine the conventioal cell base onthe input sturcture and then sample the found conventional cell instead.")
+parser.add_argument('--conv', '--conventional-cell', action='store_true', help="If given, will check whether unitcell is conventional cell, and if not, determine the conventional cell based on the input structure and then sample the found conventional cell instead.")
 
 
 args = parser.parse_args()
