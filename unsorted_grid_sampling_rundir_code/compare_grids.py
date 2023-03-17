@@ -77,11 +77,18 @@ def compute_grid_rmsd(grid1, grid2):
 
 def compute_grid_rel_error(grid1, grid2):
     """Computes number of NaNs, Inf and otherwise computes relative difference between grids."""
-    rel_err_grid = np.empty(grid1.shape).fill(np.nan)
+    rel_err_grid = np.empty(grid1.shape)
+    print("Is None 1:", rel_err_grid is None)
+    rel_err_grid.fill(np.nan_to_num(np.inf))
+    print("Is None 2:", rel_err_grid is None) 
     diff_grid = compute_diff_grid(grid1, grid2)
-    nonzero_grid1 = grid1[grid1 != 0] 
-    rel_err_grid[grid1 != 0] = np.abs(diff_grid[grid1 != 0]/grid1[grid1 != 0])
+    print("Is None 3:", diff_grid is None)
+    nonzero_grid1 = grid1[grid1 != 0.0] 
 
+    print("Is None 4:", nonzero_grid1 is None)
+    rel_err_grid[diff_grid == 0.0] = 0.0
+    rel_err_grid[grid1 != 0.0] = np.abs(diff_grid[grid1 != 0.0]/grid1[grid1 != 0.0])
+    print("Is None 5:", rel_err_grid is None)
     assert rel_err_grid.shape == grid1.shape, "Relative error grid has different shape from input grid! Something went wrong!"
 
     return rel_err_grid
@@ -102,8 +109,11 @@ def compare_grids(grid1, grid2):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("files", type=str, nargs='+', help="Give the list of files from which to read the grids that should be compared. Observe: The grids needs to contain common coordinates!")
-    parser.add_argument("-o", "--out", action="store_true", help="If given, writes the difference and absolute difference (grid_1 - grid_2) at the common coordinates into cube files.")
+    parser.add_argument("-o", "--allout", action="store_true", help="If given, writes the difference and absolute difference (grid_1 - grid_2) at the common coordinates into cube files.")
     parser.add_argument("--cc", "--customcube", action="store_true", help="Whetherto use a custom cube file reader, instead of ase's cube reader which is the default.")
+    parser.add_argument("--do", "--diff-out", action="store_true", help="If given, writes the difference at the common coordinates to a cube file. ")    
+    parser.add_argument("--ao", "--abs-out", action="store_true", help="If given, writes the absolute difference at the common coordinates to a cube file. ")    
+    parser.add_argument("--ro", "--rel-out", action="store_true", help="If given, writes the realative difference at the common coordinates to a cube file. ")    
 
     args = parser.parse_args()
     
@@ -227,20 +237,38 @@ if __name__ == '__main__':
 
 
     # write difference between grids to a cube file    
-    if args.out:
-        diff_out_name = "_".join(("difference",) + tuple(Path(file).stem for file in args.files) + (".cube",))
-        abs_diff_out_name = "_".join(("abs", diff_out_name))
 
-        difference_grid = grid_1 - grid_2
-        abs_difference_grid = np.abs(grid_1 - grid_2)
+    diff_out_name = "_".join(("difference",) + tuple(Path(file).stem for file in args.files) + (".cube",))
+    abs_diff_out_name = "_".join(("abs", diff_out_name))
+    rel_diff_out_name = "_".join(("rel", diff_out_name))
+ 
+    difference_grid = grid_1 - grid_2
+    abs_difference_grid = np.abs(grid_1 - grid_2)
 
+    rel_difference_grid = np.empty(grid_1.shape)
+    rel_difference_grid.fill(np.nan_to_num(np.inf))
+    rel_difference_grid[grid_1 != 0] = np.abs((grid_1-grid_2)[grid_1 != 0]/grid_1[grid_1 != 0])
+    rel_difference_grid[(grid_1-grid_2) == 0] = 0.0 
+    rel_diff_reference_1 = compute_grid_rel_error(grid_1, grid_2) 
+
+    #rel_diff_reference_2 = compute_grid_rel_error(grids[0], grids[1])
+
+
+    if args.allout or args.do:
         with open(diff_out_name, "w") as f1:
             write_cube(f1, atoms, difference_grid)
 
+    if args.allout or args.ao:
         with open(abs_diff_out_name, "w") as f2:
             write_cube(f2, atoms, abs_difference_grid)
 
+    if args.allout or args.ro:
+        assert np.all(rel_diff_reference_1 == rel_difference_grid), "Rel diff not equal to reference 1!!!"
+        #assert np.all(rel_diff_reference_2 == rel_difference_grid), "Rel diff not equal to reference 2!!!"
+        #assert np.all(rel_diff_reference_1 == rel_diff_reference_2), "Reference 1 not equal to reference 2!!!"
 
+        with open(rel_diff_out_name, "w") as f3:
+            write_cube(f3, atoms, rel_difference_grid)
 
     
     # Print statements for debugging and testing purposes gathered below

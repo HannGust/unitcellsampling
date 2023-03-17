@@ -3,6 +3,7 @@ import matplotlib as mpl
 #import mpl_toolkits.mplot3d as 3dplt
 import numpy as np
 import ase
+from ase.io.cube import read_cube
 from compare_grids import custom_read_cube as r_cube
 import sys
 import itertools as it
@@ -36,11 +37,12 @@ def plot_grid(atoms, grid, frac_coords, colorbar=None, plot_cart=True, cmap=None
     #"vmin, vmax = None, None # Lower and upper values used in the colormapping, in case norm is not given
 
     if plot_cart:
-        ax_sca = ax.scatter(cart_coords[:,0], cart_coords[:,1], cart_coords[:,2], c=energies, cmap=cmap, norm=norm)
+        ax_sca = ax.scatter(cart_coords[:,0], cart_coords[:,1], cart_coords[:,2], c=energies, cmap=cmap, norm=norm, s=1)
     else:
-        ax_sca = ax.scatter(frac_coords[:,0], frac_coords[:,1], frac_coords[:,2], c=energies, cmap=cmap, norm=norm)
+        ax_sca = ax.scatter(frac_coords[:,0], frac_coords[:,1], frac_coords[:,2], c=energies, cmap=cmap, norm=norm, s=1)
     fig.colorbar(ax_sca, ax=ax)
-    fig.show()
+    #fig.show()
+    fig.savefig("grid_plot_from_plotting.png")
     input("Press enter button to continue")
     return
 
@@ -51,7 +53,12 @@ if __name__ == "__main__":
         filename = None
     
     if filename:
-        (atoms, grid) = r_cube(filename)
+         #(atoms, grid) = r_cube(filename)
+         with open(filename, "r") as cf:
+             cube_cont = read_cube(cf)
+             atoms = cube_cont["atoms"]
+             grid = cube_cont["data"]
+
         g_inf = np.max(grid)
         mask = grid < g_inf
     
@@ -118,8 +125,9 @@ if __name__ == "__main__":
     
     
     for l in range(len(g_min_list)):
-       ax2_sca = ax2.scatter(min_indices_list[l][:,0], min_indices_list[l][:,1], min_indices_list[l][:,2], c=energy_array_list[l], cmap=cmap2, norm=cnorm)
+       ax2_sca = ax2.scatter(min_indices_list[l][:,0], min_indices_list[l][:,1], min_indices_list[l][:,2], c=energy_array_list[l], cmap=cmap2, norm=cnorm, s=1)
     
     fig2.colorbar(ax2_sca, ax=ax2)
-    fig2.show()
+    #fig2.show()
+    fig2.savefig("fig2_grid_plot_from_plotting.png")
     input('press enter to continue')    
