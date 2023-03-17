@@ -14,7 +14,7 @@ from pymatgen.core import Structure, Lattice
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 
-# energy calcs
+# Energy calculators:
 from ase.calculators.lj import LennardJones as LJ
 from ase.calculators.cp2k import CP2K
 from ase.calculators.lammpsrun import LAMMPS
@@ -29,7 +29,7 @@ from autocreated_methods import *
 
 # predefined by Ben
 #import energy_calculators
-
+# End of energy calculators
 
 
 # File handling
@@ -70,8 +70,19 @@ from unitcellsampling.preparatory_fcns import unitcell_to_supercell_frac_coords,
 # TODO: Actually: Move the setting of a project name and setting of environment variables to an exterior runscript - MAYBE, but arguably could be set here too.
 # TODO: Move the definition the the method arguments to this list here, for easier editing
 
-def write_argument_list(args):
+def print_input_arg_list(args):
     args_dict = args.to_dict()
+    return
+
+def gen_grid_filename():
+    return
+
+# This may be for the future rather
+def gen_output_filename():
+    return
+
+def construct_method_dict():
+    return method_dict
 
 ## TODO: Decide if you want printing internally inside these functions or 
 ##       if it should be done by a separate writer function.
@@ -94,6 +105,7 @@ def get_grid_spacing_from_shape(grid_shape, unitcell):
     true_spacing = (a/nx, b/ny, c/nz)
     print('True spacing: ', true_spacing)
     print('Grid shape: ', (nx, ny, nz))
+
     return true_spacing
 
 
@@ -278,30 +290,30 @@ infile =  input_file.name
 
 
 # TODO: Change this reading to the full given path for infile??
-lgps = ase.io.read(Path(indir, infile))
+unitcell = ase.io.read(Path(indir, infile))
 
 # Change the unitcell to the conventional cell if symmetry 
 # is used or if conv argument is specified
 # This is a bit convoluted as we may be able to use ase
 # directly I have realized now...
 if use_sym or args.conv:
-    if not symmetry.is_conventional_cell(lgps):
-        sg_analyzer = SpacegroupAnalyzer(AseAtomsAdaptor.get_structure(lgps)) 
+    if not symmetry.is_conventional_cell(unitcell):
+        sg_analyzer = SpacegroupAnalyzer(AseAtomsAdaptor.get_structure(unitcell)) 
         conv_cell = sg_analyzer.get_conventional_standard_structure()
-        lgps = AseAtomsAdaptor.get_atoms(conv_cell)
+        unitcell = AseAtomsAdaptor.get_atoms(conv_cell)
 
 #atoms = ase.io.read(input_file) # Like so? 
 
 if args.ra:
     print("Removing sampling atoms", str(atom),"from structure.")
-    atoms_temp = remove_nonframework_cations_fancy(lgps, ase.Atom(atom))
-    lgps = atoms_temp
+    atoms_temp = remove_nonframework_cations_fancy(unitcell, ase.Atom(atom))
+    unitcell = atoms_temp
 
 if use_sym:
     if args.sg:
         spacegroup = args.sg
     else:
-        spacegroup = get_spacegroup(lgps) 
+        spacegroup = get_spacegroup(unitcell) 
 
 ## Set the number of points in the grid in each dimension (or equivalently, the mesh size)
 # TODO: If symmetr is used, check/determine nearest shape that is compatible with spacegroup
@@ -311,7 +323,11 @@ else:
     grid_shape, true_spacing = get_grid_shape_from_spacing(args.space, 
                                                            unitcell, 
                                                            no_sym, 
+                                                           spacegroup,
                                                            search_denser=True)
+
+grid_spacing, unitcell, use_sym, spacegroup, 
+                                search_denser=True
  
 print("vdW cutoff factor: ", args.vdw)
 
@@ -354,18 +370,18 @@ os.environ['OMP_NUM_THREADS'] = '4'
 ####################################################################
 # This codeblock is taken from custom_lammps_grid_gen.py
 
-# Metainfo: lgps = unitcell atoms object whose sampling atoms have been removed if desired
+# Metainfo: unitcell = unitcell atoms object whose sampling atoms have been removed if desired
 #           sampler = UnitcellSampler object for the unitcell
 
 # First construct supercell
 cutoff = 12.5 # Force cutoff in Å
 print("Force cutoff used to determine supercell size: ", cutoff)
-num_cells = compute_req_supercells(lgps, cutoff)
+num_cells = compute_req_supercells(unitcell, cutoff)
 
 print("num_cells in supercell: ", num_cells)
 
 supercell_from_unitcell_wo_ions = ase.build.make_supercell(
-            lgps,
+            unitcell,
             np.diag(num_cells), wrap=True
             )
 
@@ -373,7 +389,7 @@ print("supercell from uc params: ", supercell_from_unitcell_wo_ions.get_cell_len
 print("supercell from uc cell: ", supercell_from_unitcell_wo_ions.get_cell())
 
 print("\n")
-print("Spacegroup, unitcell: ", ase.spacegroup.get_spacegroup(lgps, 1.0e-6))
+print("Spacegroup, unitcell: ", ase.spacegroup.get_spacegroup(unitcell, 1.0e-6))
 print("Spacegroup, supercell: ", ase.spacegroup.get_spacegroup(supercell_from_unitcell_wo_ions, 1.0e-6))
 
 # "Middle" unit cell (we don't need this though, since pbc)
@@ -382,7 +398,7 @@ uc_indices = (0, 0, 0)
 
 
 # Now generate grid for unitcell:
-unitcell_ucs = sample.UnitCellSampler(lgps) # DONE
+unitcell_ucs = sample.UnitCellSampler(unitcell) # DONE
 unitcell_grid, unitcell_included = unitcell_ucs.generate_grid_vectors((nx, ny, nz), vdw_scale=args.vdw) # DONE
 
 unitcell_grid = unitcell_grid.reshape(-1,3) # DONE
@@ -391,7 +407,7 @@ unitcell_included = unitcell_included.reshape(-1) # DONE
 # Convert to fractional coordinates, and convert to supercell grid
 
 print("Shape check, grid: ", np.array(unitcell_grid).shape, np.array(unitcell_grid).T.shape) # DONE
-unitcell_frac_grid = np.linalg.solve(np.array(lgps.get_cell()).T, np.array(unitcell_grid).T).T # DONE
+unitcell_frac_grid = np.linalg.solve(np.array(unitcell.get_cell()).T, np.array(unitcell_grid).T).T # DONE
 
 print("unitcell frac grid shape: ", unitcell_frac_grid.shape) #DONE
 supercell_frac_grid = unitcell_to_supercell_frac_coords(unitcell_frac_grid[unitcell_included], num_cells, unitcell_ind=(0,0,0)) #DONE
@@ -404,7 +420,7 @@ print(type(supercell_cart_grid)) # DONE
 #######################################################################
 
 ## Old version of grid_gen_script.py:
-#sampler = sample.UnitCellSampler(lgps)
+#sampler = sample.UnitCellSampler(unitcell)
 #sampler.generate_grid_vectors(n_frac=(nx, ny, nz), vdw_scale=args.vdw)
 #sampler.spacegroup = args.sg # Set spacegroup for the sampler
 
@@ -418,7 +434,7 @@ if args.sg:
 
 if args.guc:
     print("Passing unitcell information (input structure) to UCS and gemmi.")
-    sampler.gemmi_unitcell = lgps
+    sampler.gemmi_unitcell = unitcell
 
 print("Spacegroup input: ", args.sg)
 print("Symmetry: ", use_sym)
@@ -491,11 +507,11 @@ for row in energies_full:
 
 
 with open(cube_filename, 'w') as fp:
-    write_cube(fp,  lgps, data=energies_full.reshape(
+    write_cube(fp,  unitcell, data=energies_full.reshape(
         unitcell_ucs.included_grid_vectors.shape))
 
 if xsf_output:
     with open(xsf_filename, 'w') as fp:
-        write_xsf(fp,  lgps, data=energies_full.reshape(
+        write_xsf(fp,  unitcell, data=energies_full.reshape(
             unitcell_ucs.included_grid_vectors.shape))
 
