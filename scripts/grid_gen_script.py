@@ -730,7 +730,10 @@ uc_indices = (0, 0, 0)
 
 # Now generate grid for unitcell:
 unitcell_ucs = sample.UnitCellSampler(lgps) # DONE
-unitcell_grid, unitcell_included = unitcell_ucs.generate_grid_vectors((nx, ny, nz), vdw_scale=args.vdw) # DONE
+
+assert (midvox and not use_sym) or (use_sym and not midvox), "Symmetry and midvoxel sampling are not yet compatible!!! Only one can be true."
+
+unitcell_grid, unitcell_included = unitcell_ucs.generate_grid_vectors((nx, ny, nz), vdw_scale=args.vdw, midvox=args.midvox) # DONE
 
 unitcell_grid = unitcell_grid.reshape(-1,3) # DONE
 unitcell_included = unitcell_included.reshape(-1) # DONE

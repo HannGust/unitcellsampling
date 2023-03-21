@@ -209,7 +209,7 @@ class UnitCellSampler:
         return energies.reshape(included_grid_points.shape)
 
     def generate_grid_vectors(self, n_frac=(10, 10, 10), abs=None,
-                              vdw_scale=0.75, charge_scale=None):
+                              vdw_scale=0.75, midvox=False, charge_scale=None):
         """Get gridpoint vectors in the unitcell for the use of the
         TuTraSt methodology.
 
@@ -229,6 +229,13 @@ class UnitCellSampler:
 
         vdw_scale
             Scaling factor Van der Waals radius
+
+        midvox
+            Setting that specifies that grid points should be the 
+            midpoint of voxels, rather than the corners. Corresponds to
+            shifting the grid point coordinates with the vector 
+            0.5 * (a/nx, b/ny, c/nz), i.e. half of the corresponding 
+            spacing in each direction.
 
         charge_scale
             If set vdw_radius will be weighted by the atomic charge via
@@ -267,6 +274,12 @@ class UnitCellSampler:
             0, self.atoms.cell[:][1], n_frac[1], endpoint=False)
         c_mesh = np.linspace(
             0, self.atoms.cell[:][2], n_frac[2], endpoint=False)
+
+        # New midvox functionality - TODO: Test it properly.
+        if midvox:
+            a_mesh += 0.5 * (self.atoms.cell[:][0]/n_frac[0])
+            b_mesh += 0.5 * (self.atoms.cell[:][1]/n_frac[1])
+            c_mesh += 0.5 * (self.atoms.cell[:][2]/n_frac[2])
 
         vdw_radius = {}
 
