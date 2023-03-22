@@ -163,7 +163,7 @@ parser.add_argument('--ra', action='store_true', help="Specify whether to remove
 parser.add_argument('--sg', type=int, default=None, action='store', help="Manually specify the spacegroup to use for symmetry. Default is None, in which case spacegroup will be automatically determined from the structure.")
 parser.add_argument('--guc', '--gemmiunitcell', action='store_true', help="If given, will pass unitcell information to gemmi. This is currently only for testing, to see if symmetry will be better handled in certain cases with primitive unitcells. TEST.")
 parser.add_argument('--conv', '--conventional-cell', action='store_true', help="If given, will check whether unitcell is conventional cell, and if not, determine the conventional cell based on the input structure and then sample the found conventional cell instead.")
-
+parser.add_argument('--midvox', action='store_true', help="Specifies that sampling should be done in the center of voxels rather than in the corners, as is default. Corresponds to shifting the coordinates pf the grid points wiht 0.5 * (1/nx, 1/ny, 1/nz), where ni is the number of grid points in direction i.")
 
 args = parser.parse_args()
 
