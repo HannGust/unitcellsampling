@@ -53,8 +53,8 @@ if __name__ == "__main__":
         filename = None
     
     if filename:
-         #(atoms, grid) = r_cube(filename)
-         with open(filename, "r") as cf:
+        #(atoms, grid) = r_cube(filename)
+        with open(filename, "r") as cf:
              cube_cont = read_cube(cf)
              atoms = cube_cont["atoms"]
              grid = cube_cont["data"]
