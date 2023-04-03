@@ -141,7 +141,6 @@ class UnitCellSampler:
                 continue
 
             if exploit_symmetry:
-                # TODO: Fix this indexing routine, so that it works with supercells
                 grid_point_index = get_fractional_coords(
                     grid_point, self.atoms.cell[:])
                 grid_point_index[0] = grid_point_index[0]*self.n_frac[0]*self.n_supercell[0]
