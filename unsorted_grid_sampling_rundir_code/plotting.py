@@ -20,7 +20,7 @@ plot_cart = True # Boolean value determineing if plotting will be done w.r.t. ca
 # We want to plot a grid, as points, colored according to some gradient based ontheir value
 # Need to read the 
 # Plots the grid in 3D space, either in fractional or cartesian coordinates, and applies a colormap to the points
-def plot_grid(atoms, grid, frac_coords, colorbar=None, plot_cart=True, cmap=None, norm=None, vmin=None, vmax=None): # Might be useful to define a fcn
+def plot_grid(atoms, grid, frac_coords, colorbar=None, plot_cart=True, cmap=None, norm=None, vmin=None, vmax=None, **kwargs): # Might be useful to define a fcn
 
     #grid -> assume read from the file
     energies = grid.reshape((-1,1))
@@ -37,9 +37,25 @@ def plot_grid(atoms, grid, frac_coords, colorbar=None, plot_cart=True, cmap=None
     #"vmin, vmax = None, None # Lower and upper values used in the colormapping, in case norm is not given
 
     if plot_cart:
-        ax_sca = ax.scatter(cart_coords[:,0], cart_coords[:,1], cart_coords[:,2], c=energies, cmap=cmap, norm=norm, s=1)
+        ax_sca = ax.scatter(cart_coords[:,0], cart_coords[:,1], cart_coords[:,2], c=energies, cmap=cmap, norm=norm, s=100, **kwargs)
+
+        cell_corners = np.array(list(it.product([0,1], repeat=3))) @ atoms.get_cell()
+        print(cell_corners)
+        xmin, xmax = np.min(cell_corners[:,0]) - 1.0, np.max(cell_corners[:,0]) + 1.0
+        ymin, ymax = np.min(cell_corners[:,1]) - 1.0, np.max(cell_corners[:,1]) + 1.0
+        zmin, zmax = np.min(cell_corners[:,2]) - 1.0, np.max(cell_corners[:,2]) + 1.0
+
+        ax.set_xlim(xmin, xmax)
+        ax.set_ylim(ymin, ymax)
+        ax.set_zlim(zmin, zmax)
     else:
-        ax_sca = ax.scatter(frac_coords[:,0], frac_coords[:,1], frac_coords[:,2], c=energies, cmap=cmap, norm=norm, s=1)
+        ax_sca = ax.scatter(frac_coords[:,0], frac_coords[:,1], frac_coords[:,2], c=energies, cmap=cmap, norm=norm, s=100, **kwargs)
+        ax.set_xlim(-0.1, 1.1)
+        ax.set_ylim(-0.1, 1.1)
+        ax.set_zlim(-0.1, 1.1)
+        print(ax.get_xlim())
+
+  
     fig.colorbar(ax_sca, ax=ax)
     #fig.show()
     fig.savefig("grid_plot_from_plotting.png")
