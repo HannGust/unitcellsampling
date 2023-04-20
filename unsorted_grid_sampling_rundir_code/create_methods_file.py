@@ -37,8 +37,11 @@ chargefile = args.chargefile
 if args.logfile:
     if args.logfile[-4:] == ".log":
         logfile = args.logfile
+    else:
+        logfile = args.logfile + ".log"
 else:
-    logfile=".".join((method_name,"log"))
+    #logfile=".".join((method_name,"log"))
+    logfile = None
 #
 
 lmps_dict = parser_lammps_mel_inp(datafile, infile, chargefile)
@@ -67,14 +70,14 @@ header_comment = "#####   Automatically generated lammps method {}   #####".form
 if Path(txtfile).exists() and Path(txtfile).is_file():
     with open(txtfile, 'a') as file:
         file.write("#")
-        file.write("")
+        file.write("\n")
         file.write(header_comment)
         file.write(method_txt)
-        file.write("")
+        file.write("\n")
 else:
     with open(txtfile, 'w') as file:
         file.write(top_comment)
-        file.write("")
+        file.write("\n")
         file.write(header_comment)
         file.write(method_txt)
-        file.write("")
+        file.write("\n")
