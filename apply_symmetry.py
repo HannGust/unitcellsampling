@@ -4,6 +4,8 @@
 ### OBSERVE: NOT FINISHED YET!!! ###
 
 import ase
+from ase.io.cube import read_cube, write_cube
+from ase.spacegroup import get_spacegroup
 import numpy as np
 import gemmi
 import argparse
@@ -188,14 +190,14 @@ def main():
 
     # generate grid coordinates here:
     ucs = UCS(atoms)
-    grid_points, inlcuded = ucs.generate_grid_vectors(n_frac=n_frac, vdw_scale=0.0, midvox=args.midvox)
+    grid_points, inlcuded = ucs.generate_grid_vectors(n_frac=n_frac, vdw_scale=0.0, midvox=False)
     #
 
     symmetrized_grid = UCS_apply_spgrp_symmetry_to_grid(grid, grid_points, atoms, spacegroup=None, n_frac=None)
 
     if args.out:
         with open(args.out, 'w') as f:
-            write_cube(f, data=symmetrized_grid)
+            write_cube(f, atoms, data=symmetrized_grid)
 
     return
 
