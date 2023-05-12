@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("txtfile", type=str, action="store",
     help="Textfile to write (append) method to.")
 parser.add_argument("method_name", type=str, action="store",
-    help="Naming of the method, i.e. of the python function. Also affects logfile if logfile is none.")
+    help="Naming of the method, i.e. of the python function.") # Also affects logfile if logfile is none. NOPE, not currently! Changed this behaviour, because we don't want a logfile now.")
 parser.add_argument("infile", type=str, action="store",
     help="Lammps input file to parse for info to construct method.")
 parser.add_argument("datafile", type=str, action="store",
@@ -22,7 +22,7 @@ parser.add_argument("datafile", type=str, action="store",
 parser.add_argument("chargefile", type=str, action="store",
     help="Lammps set_charges file to parse for info to construct method.")
 parser.add_argument("--logfile", type=str, action="store", default=None,
-    help="Explicit naming of the logfile. Optional. Deafult is None, in which it is derived from the method name.")
+    help="Explicit naming of the logfile. Optional. Default is None, in which case logilfe is set to None, so that no logfile is produced.")
 
 
 args = parser.parse_args()
@@ -44,7 +44,7 @@ else:
     logfile = None
 #
 
-lmps_dict = parser_lammps_mel_inp(datafile, infile, chargefile)
+lmps_dict = parser_lammps_mel_inp(datafile, infile, chargefile, atomic_mass_diff_threshold=0.1)
 lmps_dict["log_file"] = logfile
 
 

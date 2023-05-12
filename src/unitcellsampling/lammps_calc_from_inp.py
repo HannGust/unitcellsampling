@@ -258,12 +258,12 @@ def mel_lmp_read_charges_file(charge_file):
     return charges
 
 
-def parser_lammps_mel_inp(datafile, infile, charge_file):
+def parser_lammps_mel_inp(datafile, infile, charge_file, atomic_mass_diff_threshold=0.05):
     """Read lammps input from data, input and charges file."""
     lammps_header, lmpcmds_in = mel_lmp_read_in_file(infile)
     lmpcmds_pp = mel_read_pp_from_lmp_data_file(datafile)
     charges = mel_lmp_read_charges_file(charge_file)
-    atom_labels, atom_masses, chem_symbs = read_lammpsdata_atom_info(datafile)
+    atom_labels, atom_masses, chem_symbs = read_lammpsdata_atom_info(datafile, atomic_mass_diff_threshold=atomic_mass_diff_threshold)
 
     lmpcmds = lmpcmds_in
     lmpcmds.extend(lmpcmds_pp)
