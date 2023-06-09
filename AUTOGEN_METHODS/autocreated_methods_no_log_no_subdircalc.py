@@ -428,7 +428,6 @@ def m55319_auto(atoms: ase.Atoms):
 		     "boundary p p p"]
 
     amendments = ["set type 1 charge 0.59",
-		  "set type 2 charge -0.63",
 		  "set type 2 charge 0.03",
 		  "set type 3 charge -0.63"]
 
@@ -3124,7 +3123,6 @@ def m76276_auto(atoms: ase.Atoms):
 
     amendments = ["set type 1 charge 0.82",
 		  "set type 2 charge 1.62",
-		  "set type 3 charge -0.59",
 		  "set type 3 charge 1.07",
 		  "set type 4 charge -0.59"]
 
