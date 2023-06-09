@@ -25,7 +25,11 @@ from unitcellsampling.lammps_calc_from_inp import lammps_method_from_data
 
 from unitcellsampling.special_methods import struct_73679_ff
 
-from autocreated_methods import *
+# Should change this, to autogenerate the dict as well
+from unitcellsampling.autocreated_methods import *
+
+# Methods for 1075 of the structures in the rest of the dataset:
+from unitcellsampling import autocreated_methods_structures_mcloud_rest_WO_duplabels_nolog_nosubdircalc 
 
 # predefined by Ben
 #import energy_calculators
@@ -145,7 +149,18 @@ automethods = {'A54189':m54189_auto,
   'A78099':m78099_auto,
   'A78355':m78355_auto}
 
+
+# Adding methods for 1075 structures in the larger dataset
+mcloud_rest_full_dict = autocreated_methods_structures_mcloud_rest_WO_duplabels_nolog_nosubdircalc.__dict__
+
+#mcloud_rest_method_dict = {}
+for key in mcloud_rest_full_dict.keys():
+    if key[0] == "m" and key[-4:]=="auto":
+        automethods["A"+key.strip("m_auto")] = mcloud_rest_full_dict[key]
+
+# Extending the methods list:
 method_list.extend(automethods.keys())
+
 
 ### Definition and parsing of arguments
 parser = argparse.ArgumentParser(description='Energy sampling of a (periodic) solid system with an added cation on the grid. Methods: (PBE/PBE-GTH/DZVP-MOLOPT-SR-GTH), Forcefields (Scholl et al)') 
