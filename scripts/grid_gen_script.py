@@ -163,22 +163,22 @@ method_list.extend(automethods.keys())
 
 
 ### Definition and parsing of arguments
-parser = argparse.ArgumentParser(description='Energy sampling of a (periodic) solid system with an added cation on the grid. Methods: (PBE/PBE-GTH/DZVP-MOLOPT-SR-GTH), Forcefields (Scholl et al)') 
-parser.add_argument('file', metavar='filename', type=str, action='store', help="Name of the cif-file containing the structure, without sample atom/ion.")
+parser = argparse.ArgumentParser(description='Energy sampling of a (periodic) solid system with an added atom/ion on the grid.') 
+parser.add_argument('file', metavar='filename', type=str, action='store', help="Name of the structure file containing the unit cell structure to be sampled. Formats: cif, cube, xsf, ...")
 #parser.add_argument('-m', '--method', type=str, action='store', default='ff_boulfelfel', choices=['pbe', 'ff', 'ff_boulfelfel', 'ff_boulfelfel_buck'], help="Method to calculate the energy during grid sampling.") # should method be optional or not? No, probably not optional? Or maybe optinal with default?
 parser.add_argument('method', type=str, action='store', choices=method_list, help="Method to calculate the energy during grid sampling.")
 parser.add_argument('-n','--name', metavar='jobname', type=str, action='store', default=None, help="Desired name for the calculation (applied to generated output files, directories, etc.).")
 parser.add_argument('-w', '--wfn', type=str, action='store', default=None, help="Specify the initial wfn-file for a DFT calculation.")
-parser.add_argument('-a', '--atom', type=str, action='store', default='Na', help="Specify the atom ((cat)ion) used for sampling.")
+parser.add_argument('-a', '--atom', type=str, action='store', default='Li', help="Specify the atom/ion used for sampling.")
 parser.add_argument('-g', '--grid', type=int, action='store', default=[10], nargs='+', help="Specify the number of grid points in each dimension (or cubic grid) (mutually exclusive with \"--space\").")
 parser.add_argument('-s', '--space', type=float, action='store', default=None, nargs='+', help="Specify the spacing between the grid points in each dimension (mutually exclusive with \"--grid\").")
-parser.add_argument('--vdw', type=float, action='store', default=1.0, help="Specify the fraction of the van der Waals radius that should be excluded from the sampled volume around each atom in thei host structure.")
+parser.add_argument('--vdw', type=float, action='store', default=0.0, help="Specify the fraction of the van der Waals radius that should be excluded from the sampled volume around each atom in the host frameworkstructure.")
 parser.add_argument('--nosym', action='store_false', help="Turns off usage of spacegroup symmetry. Default is to apply symmetry to save the number of required calculations.")
 parser.add_argument('--ra', action='store_true', help="Specify whether to remove all atoms of the type that is used for sampling from the structure, before doing the sampling.")
 parser.add_argument('--sg', type=int, default=None, action='store', help="Manually specify the spacegroup to use for symmetry. Default is None, in which case spacegroup will be automatically determined from the structure.")
-parser.add_argument('--guc', '--gemmiunitcell', action='store_true', help="If given, will pass unitcell information to gemmi. This is currently only for testing, to see if symmetry will be better handled in certain cases with primitive unitcells. TEST.")
-parser.add_argument('--conv', '--conventional-cell', action='store_true', help="If given, will check whether unitcell is conventional cell, and if not, determine the conventional cell based on the input structure and then sample the found conventional cell instead.")
-parser.add_argument('--midvox', action='store_true', help="Specifies that sampling should be done in the center of voxels rather than in the corners, as is default. Corresponds to shifting the coordinates pf the grid points wiht 0.5 * (1/nx, 1/ny, 1/nz), where ni is the number of grid points in direction i.")
+parser.add_argument('--guc', '--gemmiunitcell', action='store_true', help="If given, will pass unit cell information to gemmi. This is currently only for testing, to see if symmetry will be better handled in certain cases with primitive unitcells. TEST.")
+parser.add_argument('--conv', '--conventional-cell', action='store_true', help="If given, will check whether unit cell is conventional cell, and if not, determine the conventional cell based on the input structure and then sample the found conventional cell instead.")
+parser.add_argument('--midvox', action='store_true', help="Specifies that sampling should be done in the center of voxels rather than in the corners, as is default. Corresponds to shifting the coordinates of the grid points with 0.5 * (1/na, 1/nb, 1/nc), where ni is the number of grid points in direction of unit cell vector i.")
 
 args = parser.parse_args()
 
