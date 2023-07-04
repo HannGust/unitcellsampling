@@ -29,24 +29,22 @@ def plot_grid_plane(grid, axs="z", num=0, start_x=0, end_x=None, start_y=0,
         plt.xlabel('z')
         plt.title('x = '+str(num))
         plt.colorbar()
-        plt.show()
     elif axs=="y" or axs==2:
         plt.imshow(grid[start_x:end_x,num,start_z:end_z], cmap=cmap)
         plt.ylabel('x')
         plt.xlabel('z')
         plt.title('y = '+str(num))
         plt.colorbar()
-        plt.show()
     else:
         plt.imshow(grid[start_x:end_x,start_y:end_y,num], cmap=cmap)
         plt.ylabel('x')
         plt.xlabel('y')
         plt.title('z = '+str(num))
         plt.colorbar()
-        plt.show()
 
     if saveas:
         plt.savefig(saveas, format='eps')
+    plt.show()
 
 def plot_grid_plane_contour(grid, axs="z", num=0, start_x=0, end_x=None,
                     start_y=0, end_y=None,start_z=0,end_z=None,fignum=None,
@@ -81,7 +79,6 @@ def plot_grid_plane_contour(grid, axs="z", num=0, start_x=0, end_x=None,
         plt.ylabel('z')
         plt.xlabel('y')
         plt.title('x = '+str(num))
-        plt.show()
     elif axs=="y" or axs==2:
         X, Z = np.meshgrid(x_coord, z_coord, indexing='ij')
         contour_plot = plt.contourf(X, Z, grid[start_x:end_x, num, start_z:end_z], cmap=cmap)
@@ -89,7 +86,6 @@ def plot_grid_plane_contour(grid, axs="z", num=0, start_x=0, end_x=None,
         plt.ylabel('z')
         plt.xlabel('x')
         plt.title('y = '+str(num))
-        plt.show()
     else:
         X, Y = np.meshgrid(x_coord, y_coord, indexing='ij')
         contour_plot = plt.contourf(X, Y, grid[start_x:end_x, start_y:end_y, num], cmap=cmap)
@@ -98,10 +94,10 @@ def plot_grid_plane_contour(grid, axs="z", num=0, start_x=0, end_x=None,
         plt.ylabel('x')
         plt.xlabel('y')
         plt.title('z = '+str(num))
-        plt.show()
 
     if saveas:
         plt.savefig(saveas, format='eps')
+    plt.show()
 
 ################
 # Main program #
