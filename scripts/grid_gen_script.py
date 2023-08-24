@@ -32,7 +32,7 @@ from unitcellsampling.autocreated_methods import *
 from unitcellsampling import autocreated_methods_structures_mcloud_rest_WO_duplabels_nolog_nosubdircalc 
 
 # predefined by Ben
-#import energy_calculators
+from unitcellsampling.energy_calculators import cp2k_dft
 
 
 
@@ -63,6 +63,8 @@ from unitcellsampling.preparatory_fcns import unitcell_to_supercell_frac_coords,
 # TODO: Actually: Move the setting of a project name and setting of environment variables to an exterior runscript - MAYBE, but arguably could be set here too.
 # TODO: Move the definition the the method arguments to this list here, for easier editing
 method_list = ['pbe', 'lammps_lj', 'lammps_lj_coul', 'ff_boulfelfel', 'ff_boulfelfel_buck', 'ff_garcia_sanches', 'ase_lj', '54189', '73679']
+
+dft_methods = {'cp2k_dft':cp2k_dft}
 
 automethods = {'A54189':m54189_auto,
   'A54209':m54209_auto,
@@ -161,6 +163,7 @@ for key in mcloud_rest_full_dict.keys():
 # Extending the methods list:
 method_list.extend(automethods.keys())
 
+method_list.extend(dft_methods.keys())
 
 ### Definition and parsing of arguments
 parser = argparse.ArgumentParser(description='Energy sampling of a (periodic) solid system with an added atom/ion on the grid.') 
@@ -720,7 +723,8 @@ def structure_54189_ff_manually_coded_ALTERED_CUTOFF(atoms: ase.Atoms):
 #           sampler = UnitcellSampler object for the unitcell
 
 # First construct supercell
-cutoff = 12.5 # Force cutoff in Å
+#cutoff = 12.5 # Force cutoff in Å
+cutoff = 0.0 # Force cutoff in Å
 print("Force cutoff used to determine supercell size: ", cutoff)
 num_cells = compute_req_supercells(lgps, cutoff)
 
@@ -835,6 +839,11 @@ elif method == '73679':
 elif method in automethods.keys():
     energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
             method=automethods[method], atom=atom, exploit_symmetry=use_sym)
+
+elif method in dft_methods.keys():
+    energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
+            method=dft_methods[method], atom=atom, exploit_symmetry=use_sym)
+
 else:
     print("No default method defined yet.")
     raise Exception('No method.')
