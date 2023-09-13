@@ -32,7 +32,7 @@ from unitcellsampling.autocreated_methods import *
 from unitcellsampling import autocreated_methods_structures_mcloud_rest_WO_duplabels_nolog_nosubdircalc 
 
 # predefined by Ben
-from unitcellsampling.energy_calculators import cp2k_dft
+from unitcellsampling.energy_calculator import cp2k_dft
 
 
 
