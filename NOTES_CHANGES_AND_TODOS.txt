@@ -1,0 +1,46 @@
+# The purpose of this document is to be a free-form notepad to document 
+# thoughts, plans, comments, idea and anything of the sort, in a sketch-
+# like, back-of-the-envelope fashion - or in a structured way, whatever
+# suits the moment. The only desire is that entries should be dated, and 
+# line width kept to say a maximum of approximately ~80. 
+
+----------------
+Date: 2023-09-19
+---------------- 
+Topic, DFT implementation into the grid sampler
+- Need to implement DFT methods, calling cp2k. Ideas on this includes 
+  two functions using PBE, either unrestricted or restricted, with
+  a recommended standard pseudo-potentials and basis set as defaults, but
+  which can be settable from input. A third general method that simply 
+  takes an external cp2k input file is also desired perhaps, as this yields
+  the option of pre-generating or pre-processing the input, and facilitates
+  using the same methods as in external simulations.
+
+- In conjuction, the cp2k-dft methods for grid sampling can make good use
+  of restart and wfn-files. However, the current output provided by the 
+  subdir_calc decorator is superfluous to produce large grids with. It will
+  generate a folder and output for every single calculation. For smaller 
+  calculations, this is okay, but in general it can be a lot. I suggest
+  adding a output level option, to be able to control this behaviour. If
+  one desires complete output, that should be an option, but a sparser
+  output level is suggested where detailed output can be produced for say
+  the first and last grid calculation, or say every n:th grid point.
+  To achieve this however, the possibility to maintain track of and use
+  the wfn-files for successive calculations needs to be thought of.
+  A temporary wfn file that can be overwritten between every or almost every 
+  calculation will lessen the memory and file production burden.
+
+- Review the setting of the parameters CP2K.command (and relatedly 
+  OMP_NUM_THREADS). Should add input for this in the run script. But should
+  make it compatible with setting the environment variables (OMP_NUM_THREADS)
+  in the exterior submission scripts too, so that it avoids uneccesary clashes.
+
+- Need to decide how to set and pass charge to cp2k dft methods, i.e. how to
+  determine the number of electrons in the calculation. A related but separate
+  question is what model to use for this in practice, i.e. when we remove e.g.
+  Li-ions from a structure, what does that mean for the total elctron count?
+  Do we also remove three electrons per removed Li-ion? Or do we only remove
+  the core electrons and not the valence electron? How do we proceed in
+  general?
+  Idea: Use decorator to pass information to dft functions that require charge.
+        I.e. a pass_dft_charge()-decorator.
