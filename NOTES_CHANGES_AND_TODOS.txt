@@ -44,3 +44,16 @@ Topic, DFT implementation into the grid sampler
   general?
   Idea: Use decorator to pass information to dft functions that require charge.
         I.e. a pass_dft_charge()-decorator.
+
+----------------
+Date: 2023-09-22
+----------------
+- How to proceed on this:
+  1. DFT methods are implemented - have to incorporate them in main script
+  2. Write a charge determining function/or input parameter for charge
+  3. Locally test the charge-passing decorator; then test DFT method locally
+  4. Port to tetralith and test DFT method there.
+  5. See what can be done about parallellization. (Think about Nextflow...)
+  6. Make simple supercell test. 
+- 
+
