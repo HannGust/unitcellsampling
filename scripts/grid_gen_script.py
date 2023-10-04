@@ -354,10 +354,10 @@ if method in cp2k_dft_methods.keys():
     try:
         ase_cp2k_command = os.environ['ASE_CP2K_COMMAND']
     except KeyError:
-        raise Exception('Environment variable ASE_CP2K_COMMAND was not set!
+        raise Exception('Environment variable ASE_CP2K_COMMAND was not set!\
                 Please set this to the desired CP2K command!')
     assert isinstance(ase_cp2k_command, str)
-    print("CP2K command used is the ASE_CP2K_COMMAND environment
+    print("CP2K command used is the ASE_CP2K_COMMAND environment\
             variable.")
     print("$ASE_CP2K_COMMAND = ", ase_cp2k_command)
 
