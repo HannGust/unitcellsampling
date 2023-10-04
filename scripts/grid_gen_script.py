@@ -56,19 +56,17 @@ from unitcellsampling.preparatory_fcns import unitcell_to_supercell_frac_coords,
 
 # Defaults
 
-# Last update: 
+# Last update: 2023-10-04 
 
 ### TODO: Create input argument handling, to make usage much smoother. Some particular changes:
      # -  TODO: make the  program either recognize the filename from the input file automatically, and name the "project" accordingly
      #          or make the desired project name an input so that the variables all are set in conjuction /H
      # -  TODO: Make the subdirectory for the gridsampling also be project name-derived, and check so that it cannot overide anything by default /H
 
-
 # TODO: Actually: Move the setting of a project name and setting of environment variables to an exterior runscript - MAYBE, but arguably could be set here too.
 
-# TODO: Add total-charge determination or setting 
-
 # TODO: Test this
+# TODO: Move to cp2k-module
 # Function determining the charge automatically based on charge of sampling
 # ion and how many was removed
 def determine_total_cp2k_charge(neutral_unitcell, unitcell_to_sample, 
@@ -169,6 +167,12 @@ parser.add_argument('--vdw', type=float, action='store', default=0.0, help="Spec
 parser.add_argument('--cp2k_q', '--cp2k-total-charge', type=int, action='store', default=None, help="Specify the total charge of the structure that is to be sampled. Observe that this is for the full, final structure that is actually sampled, not the input structure. This charge is for instance passed to CP2K DFT calculators to set the number of electrons. If None, it will be automatically determined.")
 #parser.add_argument('--tc', '--total-charge', type=float, action='store', default=None, help="Specify the total charge of the structure that is to be sampled. Observe that this is for the final structure that is actually sampled, not the input structure. This charge is for instance passed to CP2K dft calculators to set the number of electrons.")
 parser.add_argument('--cp2k_aq', '--cp2k-atom-charge', type=int, action='store', default=1, help="Specify the charge of the sampling atom/ion, for the purpose of determining the CP2K total charge. This charge is only used in the automatic determination of the charge that are passed to CP2K DFT calculators. Thus, if cp2k total charge is given as an integer, or if cp2k is not used for sampling, this input is redundant.")
+
+# CP2K command argument - REDUNDANT FOR NOW
+#parser.add_argument('--cp2k_cmd', '--cp2k-command', type=str, action='store', default=default_cp2k_cmd, help="Specify the CP2K-command that is used in the ASE-CP2K calculator interface to start and run the CP2K program. Default: ")
+# Minimum-image-convention cutoff argument
+#parser.add_argument('--mic-cutoff', type=float, action='store', default=0.0, help="Specify the cut-off used to construct a supercell obeying the minimum image convention.")
+
 parser.add_argument('--nosym', action='store_false', help="Turns off usage of spacegroup symmetry. Default is to apply symmetry to save the number of required calculations.")
 parser.add_argument('--ra', action='store_true', help="Specify whether to remove all atoms of the type that is used for sampling from the structure, before doing the sampling.")
 parser.add_argument('--sg', type=int, default=None, action='store', help="Manually specify the spacegroup to use for symmetry. Default is None, in which case spacegroup will be automatically determined from the structure.")
@@ -322,18 +326,48 @@ else:
 
 
 
-### Set the directories and relted/relevant environment vars
+### Set the directories and related/relevant environment vars
 #calc_dir = './UCS_CALCS_s0.4/' + calc_name
 #calc_dir = './ucs_out_mel_data/' + calc_name
 work_dir = '.'
+os.environ['UCS_WORK_DIR'] = work_dir
 
-#CP2K.command = "env OMP_NUM_THREADS=32 srun cp2k_shell.psmp"
-CP2K.command = "env OMP_NUM_THREADS=4 cp2k_shell"   ## Should be the same / H
+
+# CP2K Things:
+# Examples:
+#CP2K.command = "env OMP_NUM_THREADS=32 srun cp2k_shell.psmp" Does it work if srun runs within here?
+#CP2K.command = "env OMP_NUM_THREADS=4 cp2k_shell"   ## Should be the same / H
+# NOTES: CP2K() in ase can be passed a cp2k_cmd option. If it isn't, it checks in order the
+# 1. the CP2K.command class variable, 2. the $ASE_CP2K_COMMAND 3. cp2k_shell
+# So I could either set the CP2K.command class variable or I can set the ASE_CP2K_COMMAND environment variable.
+# For now, externally setting the ASE_CP2K_COMMAND environment vatiable seems most reasonable.
+# However, for full control I should check that the CP2K.command variable is not set already.
+#CP2K.command = args.cp2k_cmd # Though input: Check default as well
+
+# Current implementation: Check CP2K.command first, second ASE_CP2K_COMMAND
+# note that CP2K.command seems to be initiated as None.
+if CP2K.command is not None:
+    raise Exception('CP2K.command class variable was not None. Please use \
+            environment variable $ASE_CP2K_COMMAND to set CP2K command!')
+
+if method in cp2k_dft_methods.keys():
+    try:
+        ase_cp2k_command = os.environ['ASE_CP2K_COMMAND']
+    except KeyError:
+        raise Exception('Environment variable ASE_CP2K_COMMAND was not set!
+                Please set this to the desired CP2K command!')
+    assert isinstance(ase_cp2k_command, str)
+    print("CP2K command used is the ASE_CP2K_COMMAND environment
+            variable.")
+    print("$ASE_CP2K_COMMAND = ", ase_cp2k_command)
+
+
 #if not os.path.isdir(Path(calc_dir)):
 #    os.mkdir(calc_dir)                ## Might be better later to export these in terminal bash script /H
 #os.environ['UCS_CALCULATION_DIR'] = calc_dir  #'./LTA_lammps_ff_grid_test' #./LTA4A_reduced_grid_gen'
-os.environ['UCS_WORK_DIR'] = work_dir
-os.environ['OMP_NUM_THREADS'] = '4'
+
+# We leave this to the enviroment setting for now
+#os.environ['OMP_NUM_THREADS'] = '4'
 
 
 # CP2K stuff, for DFT 
@@ -455,49 +489,16 @@ print("Spacegroup input: ", args.sg)
 print("Symmetry: ", use_sym)
 
 
-if method == 'pbe':
+#if method == 'pbe':
     # For DFT:
-    energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
-        method=dft_pbe, atom=atom, exploit_symmetry=use_sym)
+#    energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
+#        method=dft_pbe, atom=atom, exploit_symmetry=use_sym)
 
-elif method == 'lammps_lj':
-    # For ForceField TEST, simple lj:
-    energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
-        method=lammps_lj, atom=atom, exploit_symmetry=use_sym)
+#elif method == '73679':
+#    energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
+#            method=struct_73679_ff, atom=atom, exploit_symmetry=use_sym)
 
-elif method == 'lammps_lj_coul':
-    # For ForceField test, simple lj + electrostatics with Ewald:
-    energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
-        method=lammps_lj_coul, atom=atom, exploit_symmetry=use_sym)
-
-elif method == 'ff_boulfelfel':
-    # For ForceField (Boulfelfel et al, 2021):
-    energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
-        method=lammps_ff_boulfelfel, atom=atom, exploit_symmetry=use_sym)
-
-elif method == 'ff_boulfelfel_buck':
-    # For ForceField (Boulfelfel et al, 2021), but only the Buckingham part:
-    energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
-        method=lammps_ff_boulfelfel_buck, atom=atom, exploit_symmetry=use_sym)
-
-elif method == 'ff_garcia_sanches':
-    # For ForceField (Garcia-Sanches et al, 2009):
-    energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
-        method=lammps_ff_garcia_sanches, atom=atom, exploit_symmetry=use_sym)
-
-elif method == 'ase_lj':
-    energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
-        method=ase_lj, atom=atom, exploit_symmetry=use_sym)
-
-elif method == '54189':
-    energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
-            method=structure_54189_ff_manually_coded_ALTERED_CUTOFF, atom=atom, exploit_symmetry=use_sym)
-
-elif method == '73679':
-    energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
-            method=struct_73679_ff, atom=atom, exploit_symmetry=use_sym)
-
-elif method in automethods.keys():
+if method in automethods.keys():
     energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
             method=automethods[method], atom=atom, exploit_symmetry=use_sym)
 
