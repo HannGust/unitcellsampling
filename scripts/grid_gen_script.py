@@ -171,7 +171,7 @@ parser.add_argument('--cp2k_aq', '--cp2k-atom-charge', type=int, action='store',
 # CP2K command argument - REDUNDANT FOR NOW
 #parser.add_argument('--cp2k_cmd', '--cp2k-command', type=str, action='store', default=default_cp2k_cmd, help="Specify the CP2K-command that is used in the ASE-CP2K calculator interface to start and run the CP2K program. Default: ")
 # Minimum-image-convention cutoff argument
-#parser.add_argument('--mic-cutoff', type=float, action='store', default=0.0, help="Specify the cut-off used to construct a supercell obeying the minimum image convention.")
+parser.add_argument('--mic-cutoff', type=float, action='store', default=0.0, help="Specify the cut-off used to construct a supercell obeying the minimum image convention.")
 
 parser.add_argument('--nosym', action='store_false', help="Turns off usage of spacegroup symmetry. Default is to apply symmetry to save the number of required calculations.")
 parser.add_argument('--ra', action='store_true', help="Specify whether to remove all atoms of the type that is used for sampling from the structure, before doing the sampling.")
@@ -386,7 +386,7 @@ if method in cp2k_dft_methods.keys():
 
 # First construct supercell
 #cutoff = 12.5 # Force cutoff in Å
-cutoff = 0.0 # Force cutoff in Å
+cutoff =  args.mic_cutoff # Force cutoff in Å, which is used to determine supercell compliant with MIC
 print("Force cutoff used to determine supercell size: ", cutoff)
 num_cells = compute_req_supercells(unitcell, cutoff)
 
