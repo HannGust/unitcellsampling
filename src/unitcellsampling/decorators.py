@@ -5,12 +5,40 @@ from pathlib import Path
 
 ## Original subdir_calc
 # TODO: Add argument for getting information from 'master' calculation
+#def subdir_calc(calculate_energy):
+#    """
+#    Decorator for performing calculation in folder specified
+#    by environment variable UCS_CALCULATION_DIR.
+#    """
+#    def calculate_in_subdir(atoms: ase.Atoms):
+#        cwd = os.getcwd()
+#        calc_dir = os.getenv("UCS_CALCULATION_DIR")
+#        sub_dir_name = '_'.join(
+#            ['{:.3f}'.format(c)
+#             for c in atoms.get_scaled_positions()[-1]])
+#        sub_dir = Path(calc_dir, sub_dir_name)
+#
+#        Path(calc_dir).mkdir(exist_ok=True, parents=True)
+#        sub_dir.mkdir(exist_ok=False)
+#        os.chdir(sub_dir)
+#
+#        ase.io.write('atoms.cif', atoms)
+#        potential_energy = calculate_energy(atoms)
+#
+#        os.chdir(str(cwd))
+#        return potential_energy
+#
+#    return calculate_in_subdir
+##
+
+## Modified original subdir_calc
+# DONE: Added general **kwargs argument passing from decoartor to calculator
 def subdir_calc(calculate_energy):
     """
     Decorator for performing calculation in folder specified
     by environment variable UCS_CALCULATION_DIR.
     """
-    def calculate_in_subdir(atoms: ase.Atoms):
+    def calculate_in_subdir(atoms: ase.Atoms, **kwargs):
         cwd = os.getcwd()
         calc_dir = os.getenv("UCS_CALCULATION_DIR")
         sub_dir_name = '_'.join(
@@ -23,7 +51,7 @@ def subdir_calc(calculate_energy):
         os.chdir(sub_dir)
 
         ase.io.write('atoms.cif', atoms)
-        potential_energy = calculate_energy(atoms)
+        potential_energy = calculate_energy(atoms, **kwargs)
 
         os.chdir(str(cwd))
         return potential_energy
@@ -31,7 +59,10 @@ def subdir_calc(calculate_energy):
     return calculate_in_subdir
 #
 
+
 # New subdir_calc : in progess
+# TODO: Finish code, decide labels, add **kwargs passing if this works in prev subdir calc, and test
+# TODO: Think about passing restart-files if theres any. Also think about this and parallelization
 def subdir_calc_new(calculate_energy):
     """
     Decorator for controlling output and
