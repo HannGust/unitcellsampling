@@ -109,7 +109,7 @@ def determine_total_cp2k_charge(neutral_unitcell, unitcell_to_sample,
     print("Sampling ion charge: ", sample_ion_charge)
     print("Total CP2K charge determined to be: ", str(tot_q))
     #
-    return int(tot_q)
+    return float(tot_q)
 
 
 #method_list = ['pbe', 'lammps_lj', 'lammps_lj_coul', 'ff_boulfelfel', 'ff_boulfelfel_buck', 'ff_garcia_sanches', 'ase_lj', '54189', '73679']
@@ -268,7 +268,7 @@ if use_sym:
         spacegroup = get_spacegroup(unitcell) 
 
 ## Set the number of points in the grid in each dimension (or equivalently, the mesh size)
-# TODO: If symmetr is used, check/determine nearest shape that is compatible with spacegroup
+# TODO: If symmetry is used, check/determine nearest shape that is compatible with spacegroup
 if not args.space:
     if len(args.grid) == 1:
         nx,ny,nz = args.grid * 3
