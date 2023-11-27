@@ -38,6 +38,9 @@ from unitcellsampling.energy_calculator import cp2k_dft
 # New cp2k dft methods and wrappers
 from unitcellsampling import cp2k_calculators
 from unitcellsampling.cp2k_calculators import pass_cp2k_charge
+from unitcellsampling.cp2k_calculators import cp2k_calculator_from_input
+from unitcellsampling.cp2k_calculators import cp2k2ucs
+
 # from unitcellsampling.cp2k_calculators import pass_cp2k_input
 
 # File handling
@@ -167,6 +170,8 @@ parser.add_argument('--vdw', type=float, action='store', default=0.0, help="Spec
 parser.add_argument('--cp2k_q', '--cp2k-total-charge', type=int, action='store', default=None, help="Specify the total charge of the structure that is to be sampled. Observe that this is for the full, final structure that is actually sampled, not the input structure. This charge is for instance passed to CP2K DFT calculators to set the number of electrons. If None, it will be automatically determined.")
 #parser.add_argument('--tc', '--total-charge', type=float, action='store', default=None, help="Specify the total charge of the structure that is to be sampled. Observe that this is for the final structure that is actually sampled, not the input structure. This charge is for instance passed to CP2K dft calculators to set the number of electrons.")
 parser.add_argument('--cp2k_aq', '--cp2k-atom-charge', type=int, action='store', default=1, help="Specify the charge of the sampling atom/ion, for the purpose of determining the CP2K total charge. This charge is only used in the automatic determination of the charge that are passed to CP2K DFT calculators. Thus, if cp2k total charge is given as an integer, or if cp2k is not used for sampling, this input is redundant.")
+
+parser.add_argument('--cp2k_template', type=str, action='store', help="Specify the cp2k input file template. Only important for methods using a cp2k input template.")
 
 # CP2K command argument - REDUNDANT FOR NOW
 #parser.add_argument('--cp2k_cmd', '--cp2k-command', type=str, action='store', default=default_cp2k_cmd, help="Specify the CP2K-command that is used in the ASE-CP2K calculator interface to start and run the CP2K program. Default: ")
@@ -507,7 +512,7 @@ elif method in dft_methods.keys():
             method=dft_methods[method], atom=atom, exploit_symmetry=use_sym)
 
 # CP2K methods!!! Needs testing!!! 
-elif method in cp2k_dft_methods.keys():
+elif method in cp2k_dft_methods.keys() and method != "cp2k_calculator_from_input":
     cp2k_calc = cp2k_dft_methods[method]
 
     # TODO: This has been updated in cp2k_calculators.py. Testing needs to be done
@@ -516,6 +521,46 @@ elif method in cp2k_dft_methods.keys():
 
     energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
             method=cp2k_calc, atom=atom, exploit_symmetry=use_sym)
+
+# CP2K from input THIS IS UNFINISHED AND NEEDS TO BE FINISHED!!!!!!!
+elif method in cp2k_dft_methods.keys() and method == "cp2k_calculator_from_input":
+    # First: Check the cp2k_template is set, and that it is a file.
+    if args.cp2k_template is None:
+        raise Exception("Method " + str(method) + " requires a cp2k template \
+              input file to be sepcified through the --cp2k_template argument.")
+
+    cp2k_template_file  = Path(args.cp2k_template) 
+
+    if not cp2k_template_file.exists():
+        raise Exception("CP2K template input file " + str(cp2k_template_file) 
+                       + " was not found!")
+
+    # Then parse the file into a str passable to the calculator:
+    with open(cp2k_template_file, 'r') as f_inp:
+        parsed_cp2k_input = "".join(f_inp.readlines()) 
+
+    # Now create the calculator
+    cp2k_kwargs = dict(print_level="MEDIUM",
+                       basis_set="DZVP-MOLOPT-SR-GTH",
+                       pseudo_potential="auto")
+
+    cp2k_calc_from_inp = cp2k_calculator_from_input(parsed_cp2k_input, 
+                                                    **cp2k_kwargs)
+
+    # Turn the constructed calculator into a UCS compatible one
+    # i.e. singature atoms -> float (energy)
+    cp2k_calc = cp2k2ucs(cp2k_calc_from_inp, 
+                    base_calc_dir="UCS_CALCS/"+input_basename+"/"+str(args.name),
+                    base_label="cp2k")
+
+
+    # TODO: This has been updated in cp2k_calculators.py. Testing needs to be done
+    if "requires_charge" in cp2k_calc.__dict__.keys() and cp2k_calc.requires_charge:
+        cp2k_calc = pass_cp2k_charge(cp2k_calc, args.cp2k_q)
+
+    energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
+            method=cp2k_calc, atom=atom, exploit_symmetry=use_sym)
+
 
 else:
     print("No default method defined yet.")

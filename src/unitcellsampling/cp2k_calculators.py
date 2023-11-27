@@ -44,6 +44,41 @@ def pass_cp2k_input(cp2k_calc, parsed_cp2k_input):
     return cp2k_calculator
 
 
+# Function converting a cp2k-calculator to an ucs calculator
+# (i.e. function with singature ase.Atoms -> float
+def cp2k2ucs(cp2k_calc, base_calc_dir="UCS_CALCS/cp2k", base_label="cp2k",
+             update_mode="label"):
+    """Embeds an ase CP2K calculator into a function
+    with signature atoms -> float,  required for being
+    a ucs calculator. Also provides an update scheme for label and 
+    directories for individual calculations, and an iteration
+    tracker.
+    update_mode = label, dir or both. Both is default.
+    Other options not implemented."""
+
+    # TODO: Possibly implement file-existence check here
+    
+    # if update_mode == "label_only": 
+
+    def ucs_calc(atoms):
+        ucs_calc.iter += 1
+         
+        calc_label = base_label + "_calc" + str(ucs_calc.iter)
+        calc_dir = base_calc_dir + "_calc" + str(ucs_calc.iter)
+
+        cp2k_calc.label = calc_label
+        cp2k_calc.directory = calc_dir
+        
+        cp2k_calc.calculate(atoms=atoms, properties=['energy'])
+
+        energy = cp2k_calc.results['energy']
+
+        return energy
+
+    ucs_calc.iter = 0
+    return ucs_calc
+
+
 ##########################################################################
 # The following template is from the original energy_calculators-module
 # where it was called cp2k_dft. This is presently only meant as a template
@@ -89,6 +124,7 @@ complete_cp2k_kwargs = {
 ### End CP2K through ase info ###
 
 # CP2K purely from parsed input
+# TODO: Switch this into the tested one
 # TODO: Test this
 # TODO: See if some keywords should be set to "None" to prevent 
 # interference of the default template used by the ase CP2K-calculator
@@ -102,6 +138,57 @@ def cp2k_from_input(atoms: ase.Atoms, cp2k_input=""):
     atoms.set_calculator(calc)
     return atoms.get_potential_energy()
 
+
+def cp2k_calculator_from_input(cp2k_input, **kwargs):
+    """General energy calculator from parsed input from a cp2k input file.
+    The input must be provided as a single string. Need to test parsing.
+    Can also specify additional kwargs that are passed to the CP2K
+    calculator; these are otherwise set to None, which will prohibit the ase
+    caluclator from automatically generating undesired input sections."""
+
+    accepted_kwargs = ['auto_write',
+        'basis_set',
+        'basis_set_file',
+        'charge',
+        'cutoff',
+        'force_eval_method',
+        'max_scf',
+        'potential_file',
+        'pseudo_potential',
+        'stress_tensor',
+        'uks',
+        'poisson_solver',
+        'xc',
+        'print_level',
+        'debug',
+       ]
+
+    cp2k_kwargs = dict(
+        auto_write=False,
+        basis_set=None,
+        basis_set_file=None,
+        charge=None,
+        cutoff=None,
+        force_eval_method=None,
+        max_scf=None,
+        potential_file=None,
+        pseudo_potential=None,
+        stress_tensor=None,
+        uks=None,
+        poisson_solver=None,
+        xc=None,
+        print_level=None,
+        debug=False
+        )
+
+    assert accepted_kwargs == list(cp2k_kwargs.keys())
+    assert set(kwargs.keys()).issubset(set(accepted_kwargs))
+
+    cp2k_kwargs.update(kwargs)
+
+    cp2k_calc = CP2K(inp=cp2k_input, **cp2k_kwargs)
+
+    return cp2k_calc
 
 
 # Ordinary cp2k_dft_pbe, restricted spin
