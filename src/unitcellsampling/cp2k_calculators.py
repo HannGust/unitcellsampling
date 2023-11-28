@@ -46,7 +46,7 @@ def pass_cp2k_input(cp2k_calc, parsed_cp2k_input):
 
 # Function converting a cp2k-calculator to an ucs calculator
 # (i.e. function with singature ase.Atoms -> float
-def cp2k2ucs(cp2k_calc, base_calc_dir="UCS_CALCS/cp2k", base_label="cp2k",
+def cp2k2ucs(cp2k_calc, base_calc_dir="UCS_CALCS/cp2k_calc", base_label="cp2k",
              update_mode="label"):
     """Embeds an ase CP2K calculator into a function
     with signature atoms -> float,  required for being
@@ -58,13 +58,21 @@ def cp2k2ucs(cp2k_calc, base_calc_dir="UCS_CALCS/cp2k", base_label="cp2k",
 
     # TODO: Possibly implement file-existence check here
     
-    # if update_mode == "label_only": 
+    # if update_mode == "label_only":
+    label_switch = 1
+    dir_switch = 1
+    
+    if update_mode == "label":
+        dir_swtch = 0
+    if update_mode == "dir":
+        label_switch = 0
+         
 
     def ucs_calc(atoms):
         ucs_calc.iter += 1
          
-        calc_label = base_label + "_calc" + str(ucs_calc.iter)
-        calc_dir = base_calc_dir + "_calc" + str(ucs_calc.iter)
+        calc_label = base_label + label_switch * ("_" + str(ucs_calc.iter))
+        calc_dir = base_calc_dir + dir_switch * ("_" + str(ucs_calc.iter))
 
         cp2k_calc.label = calc_label
         cp2k_calc.directory = calc_dir

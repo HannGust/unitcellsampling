@@ -550,7 +550,7 @@ elif method in cp2k_dft_methods.keys() and method == "cp2k_calculator_from_input
     # Turn the constructed calculator into a UCS compatible one
     # i.e. singature atoms -> float (energy)
     cp2k_calc = cp2k2ucs(cp2k_calc_from_inp, 
-                    base_calc_dir="UCS_CALCS/"+input_basename+"/"+str(args.name),
+                    base_calc_dir="UCS_CALCS/"+input_basename+"_"+str(args.name)+"/calc",
                     base_label="cp2k")
 
 
