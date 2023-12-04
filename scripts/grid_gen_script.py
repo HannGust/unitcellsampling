@@ -173,6 +173,8 @@ parser.add_argument('--cp2k_aq', '--cp2k-atom-charge', type=int, action='store',
 
 parser.add_argument('--cp2k_template', type=str, action='store', help="Specify the cp2k input file template. Only important for methods using a cp2k input template.")
 
+parser.add_argument('--cp2k_wfn_mode', type=str, action='store', default=None, choices=[None, 'off', 'on', 'seq'], help="Specify the cp2k wfn guess mode, i.e. how the SCF_GUESS is set. By default, it is off. \"on\" or \"seq\" uses a simple sequential strategy, in which each subsequent calculation uses the resulting wfn file from the previous calculation. Only relevant for methods using DFT cp2k methods.")
+
 # CP2K command argument - REDUNDANT FOR NOW
 #parser.add_argument('--cp2k_cmd', '--cp2k-command', type=str, action='store', default=default_cp2k_cmd, help="Specify the CP2K-command that is used in the ASE-CP2K calculator interface to start and run the CP2K program. Default: ")
 # Minimum-image-convention cutoff argument
@@ -527,7 +529,7 @@ elif method in cp2k_dft_methods.keys() and method == "cp2k_calculator_from_input
     # First: Check the cp2k_template is set, and that it is a file.
     if args.cp2k_template is None:
         raise Exception("Method " + str(method) + " requires a cp2k template \
-              input file to be sepcified through the --cp2k_template argument.")
+              input file to be specified through the --cp2k_template argument.")
 
     cp2k_template_file  = Path(args.cp2k_template) 
 
@@ -547,12 +549,24 @@ elif method in cp2k_dft_methods.keys() and method == "cp2k_calculator_from_input
     cp2k_calc_from_inp = cp2k_calculator_from_input(parsed_cp2k_input, 
                                                     **cp2k_kwargs)
 
+    # Manage wfn file usage:
+    if args.cp2k_wfn_mode in ['on', 'seq']:
+        wfn_restart = True
+    else:
+        wfn_restart = False
+
     # Turn the constructed calculator into a UCS compatible one
     # i.e. singature atoms -> float (energy)
     cp2k_calc = cp2k2ucs(cp2k_calc_from_inp, 
                     base_calc_dir="UCS_CALCS/"+input_basename+"_"+str(args.name)+"/calc",
-                    base_label="cp2k")
+                    base_label="cp2k",
+                    restart=wfn_restart)
 
+    # Print the wfn mode setting:
+    if wfn_restart:
+        print("wfn_restart = ", wfn_restart, ": Each calculation uses wfn from previous calculation as scf_guess - this is an experimental setting!!!")
+    else: 
+        print("wfn_restart = ", wfn_restart, ": SCF_GUESS is not managed by the sampler - wfn files are not reused.")
 
     # TODO: This has been updated in cp2k_calculators.py. Testing needs to be done
     if "requires_charge" in cp2k_calc.__dict__.keys() and cp2k_calc.requires_charge:

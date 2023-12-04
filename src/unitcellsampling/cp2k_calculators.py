@@ -47,7 +47,7 @@ def pass_cp2k_input(cp2k_calc, parsed_cp2k_input):
 # Function converting a cp2k-calculator to an ucs calculator
 # (i.e. function with singature ase.Atoms -> float
 def cp2k2ucs(cp2k_calc, base_calc_dir="UCS_CALCS/cp2k_calc", base_label="cp2k",
-             update_mode="label"):
+             update_mode="label", restart=True):
     """Embeds an ase CP2K calculator into a function
     with signature atoms -> float,  required for being
     a ucs calculator. Also provides an update scheme for label and 
@@ -74,6 +74,24 @@ def cp2k2ucs(cp2k_calc, base_calc_dir="UCS_CALCS/cp2k_calc", base_label="cp2k",
         calc_label = base_label + label_switch * ("_" + str(ucs_calc.iter))
         calc_dir = base_calc_dir + dir_switch * ("_" + str(ucs_calc.iter))
 
+        # New simple restart functionality - to be tested:
+        # Uses the wfn-file of the previous calculations as restart
+        if restart and ucs_calc.iter > 1:
+            prev_calc_dir = base_calc_dir + dir_switch * ("_" 
+                                          + str(ucs_calc.iter - 1))
+            prev_label = base_label + label_switch * ("_" 
+                                    + str(ucs_calc.iter - 1))
+            restart_file = prev_calc_dir + "/" + prev_label + "-RESTART.wfn"
+
+            # The setting needs to be checked:
+            # When it works, embed into function!
+            # Pseudo code: get original input as str -> parse it to InputSection -> add_c2pk_restart_file to it -> transform back into input -> overwrite input.
+            inp_section = ase.calculators.cp2k.parse_input(ucs_calc.init_inp)
+            inp_section.add_keyword('FORCE_EVAL/DFT', 'WFN_RESTART_FILE_NAME ' + restart_file)
+            inp_section.add_keyword('FORCE_EVAL/DFT/SCF', 'SCF_GUESS RESTART')
+            new_inp = "\n".join(inp_section.write()) # It should be newline!
+            cp2k_calc.set(inp=new_inp)
+
         cp2k_calc.label = calc_label
         cp2k_calc.directory = calc_dir
         
@@ -84,6 +102,7 @@ def cp2k2ucs(cp2k_calc, base_calc_dir="UCS_CALCS/cp2k_calc", base_label="cp2k",
         return energy
 
     ucs_calc.iter = 0
+    ucs_calc.init_inp = cp2k_calc.__dict__['parameters']['inp']
     return ucs_calc
 
 
