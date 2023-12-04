@@ -167,7 +167,7 @@ parser.add_argument('-a', '--atom', type=str, action='store', default='Li', help
 parser.add_argument('-g', '--grid', type=int, action='store', default=[10], nargs='+', help="Specify the number of grid points in each dimension (or cubic grid) (mutually exclusive with \"--space\").")
 parser.add_argument('-s', '--space', type=float, action='store', default=None, nargs='+', help="Specify the spacing between the grid points in each dimension (mutually exclusive with \"--grid\").")
 parser.add_argument('--vdw', type=float, action='store', default=0.0, help="Specify the fraction of the van der Waals radius that should be excluded from the sampled volume around each atom in the host framework structure.")
-parser.add_argument('--cp2k_q', '--cp2k-total-charge', type=int, action='store', default=None, help="Specify the total charge of the structure that is to be sampled. Observe that this is for the full, final structure that is actually sampled, not the input structure. This charge is for instance passed to CP2K DFT calculators to set the number of electrons. If None, it will be automatically determined.")
+parser.add_argument('--cp2k_q', '--cp2k-total-charge', type=str, action='store', default=None, help="Specify the total charge of the structure that is to be sampled. Observe that this is for the full, final structure that is actually sampled, not the input structure. This charge is for instance passed to CP2K DFT calculators to set the number of electrons. Options: int - to set the charge explicitly, \"auto\" for automatic determination based of cp2k_aq, None for no determination or setting of charge (e.g. if present in cp2k input template already).")
 #parser.add_argument('--tc', '--total-charge', type=float, action='store', default=None, help="Specify the total charge of the structure that is to be sampled. Observe that this is for the final structure that is actually sampled, not the input structure. This charge is for instance passed to CP2K dft calculators to set the number of electrons.")
 parser.add_argument('--cp2k_aq', '--cp2k-atom-charge', type=int, action='store', default=1, help="Specify the charge of the sampling atom/ion, for the purpose of determining the CP2K total charge. This charge is only used in the automatic determination of the charge that are passed to CP2K DFT calculators. Thus, if cp2k total charge is given as an integer, or if cp2k is not used for sampling, this input is redundant.")
 
@@ -413,7 +413,7 @@ supercell_from_unitcell_wo_ions = ase.build.make_supercell(
 # Here goes charge determination for cp2k:
 # TODO: Think about which method to use - supercell seems better now
 # Also, test it, see that it works...
-if not args.cp2k_q or args.cp2k_q == "auto":
+if args.cp2k_q == "auto":
     # Determine charge per unitcell:
     cp2k_charge_per_unitcell = determine_total_cp2k_charge(init_unitcell, 
             unitcell, args.atom, args.cp2k_aq)
@@ -546,8 +546,20 @@ elif method in cp2k_dft_methods.keys() and method == "cp2k_calculator_from_input
                        basis_set="DZVP-MOLOPT-SR-GTH",
                        pseudo_potential="auto")
 
+    # TODO: This has been updated in cp2k_calculators.py. Testing needs to be done
+    if args.cp2k_q is not None:
+        print("Passing total charge = ", int(args.cp2k_q), " to CP2K calculator")
+        cp2k_kwargs["charge"] = int(args.cp2k_q)
+    else:
+        print("--cp2k_q is None - charge is not passed, but that present"
+              + " in the inputfile template is used if present.")
+
+
     cp2k_calc_from_inp = cp2k_calculator_from_input(parsed_cp2k_input, 
                                                     **cp2k_kwargs)
+    # Check charge (sanity check):
+    print("Sanity check, cp2k calculator charge: ",
+          cp2k_calc_from_inp.__dict__["parameters"]["charge"])
 
     # Manage wfn file usage:
     if args.cp2k_wfn_mode in ['on', 'seq']:
@@ -558,19 +570,20 @@ elif method in cp2k_dft_methods.keys() and method == "cp2k_calculator_from_input
     # Turn the constructed calculator into a UCS compatible one
     # i.e. singature atoms -> float (energy)
     cp2k_calc = cp2k2ucs(cp2k_calc_from_inp, 
-                    base_calc_dir="UCS_CALCS/"+input_basename+"_"+str(args.name)+"/calc",
+                    base_calc_dir="UCS_CALCS/" + input_basename + "_" + str(args.name) + "/calc",
                     base_label="cp2k",
                     restart=wfn_restart)
 
     # Print the wfn mode setting:
     if wfn_restart:
-        print("wfn_restart = ", wfn_restart, ": Each calculation uses wfn from previous calculation as scf_guess - this is an experimental setting!!!")
+        print("wfn_restart = ", wfn_restart,
+              ": Each calculation uses wfn from previous calculation",
+              " as scf_guess - this is an experimental setting!!!")
     else: 
-        print("wfn_restart = ", wfn_restart, ": SCF_GUESS is not managed by the sampler - wfn files are not reused.")
+        print("wfn_restart = ", wfn_restart,
+              ": SCF_GUESS is not managed by the sampler",
+              " - wfn files are not reused.")
 
-    # TODO: This has been updated in cp2k_calculators.py. Testing needs to be done
-    if "requires_charge" in cp2k_calc.__dict__.keys() and cp2k_calc.requires_charge:
-        cp2k_calc = pass_cp2k_charge(cp2k_calc, args.cp2k_q)
 
     energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
             method=cp2k_calc, atom=atom, exploit_symmetry=use_sym)
