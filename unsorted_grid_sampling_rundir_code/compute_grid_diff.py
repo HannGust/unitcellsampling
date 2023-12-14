@@ -41,10 +41,20 @@ else:
 diff_grid = grid1 - grid2
 abs_diff_grid = np.abs(diff_grid)
 
+
+rel_norm_max = np.abs(abs_diff_grid) / np.abs(np.max(np.stack(grid1, grid2), axis=0))
+
+
+#np.stdev()
+
 with open("diff_grid.cube", 'w') as cube1:
     write_cube(cube1, atoms1, data=diff_grid)
 
 with open("abs_diff_grid.cube", 'w') as cube2:
     write_cube(cube2, atoms1, data=abs_diff_grid) 
+
+with open("rel_diff_grid.cube", 'w') as cube2:
+    write_cube(cube2, atoms1, data=abs_diff_grid) 
+
 
 
