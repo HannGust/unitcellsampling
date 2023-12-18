@@ -605,17 +605,22 @@ energies_full[unitcell_included] = energies
 cube_filename = ".".join((calc_name, 'cube'))
 xsf_filename = ".".join((calc_name, 'xsf'))
 print()
+
+# Disabled here: Printing of energy grid values in the output file.
 #print(*np.array2string(energies.reshape((len(energies),1)), formatter={"float_kind":lambda x: "%.7f" % x }))
-for row in energies_full:
-    print(row)
+#for row in energies_full:
+#    print(row)
 
 
 with open(cube_filename, 'w') as fp:
     write_cube(fp, unitcell, data=energies_full.reshape(
         unitcell_ucs.included_grid_vectors.shape))
 
+print("Grid written to cube-file: ", cube_filename)
+
 if xsf_output:
     with open(xsf_filename, 'w') as fp:
         write_xsf(fp, unitcell, data=energies_full.reshape(
             unitcell_ucs.included_grid_vectors.shape))
 
+    print("Grid written to xsf-file: ", xsf_filename)
