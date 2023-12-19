@@ -202,6 +202,14 @@ class UnitCellSampler:
             grid_points, included_grid_points, n_exploited_symmetry)
 
         # Normalize
+        if exploit_symmetry:
+            print("Symmetry used: Casting to np.float32 before grid normalization.")
+            energies = energies.astype(np.float32)
+        
+        min_grid_energy = energies.min()
+        print("Normalizing grid by shifting minimum energy to 0.0, i.e. subtracting minimum energy.")
+        print("Minimum grid energy: ", min_grid_energy)
+        print("Added shift: ", -min_grid_energy)
         energies = energies - energies.min()
         np.nan_to_num(energies, copy=False)
 
