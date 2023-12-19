@@ -21,15 +21,15 @@ def calc_rel_error(test_grid, ref_grid, divide_by=None, mode="direct"):
         # the relative error is computed as is
         if divide_by == "test":
             # Let the test_grid be the denominator
-            rel_error = np.copy(np.abs(np.divide(ref_grid - test_grid, test_grid)
+            rel_error = np.copy(np.abs(np.divide(ref_grid - test_grid, test_grid)))
         elif divide_by == "max":
             # Let for each grid point the max of the two grids be denominator
             max_grid = np.max(np.stack((test_grid, ref_grid), axis=0), axis=0)
-            rel_error = np.copy(np.abs(np.divide(ref_grid - test_grid, max_grid)
+            rel_error = np.copy(np.abs(np.divide(ref_grid - test_grid, max_grid)))
         elif divide_by == "min":
             # Let for each grid point the min of the two grids be denominator
             min_grid = np.min(np.stack((test_grid, ref_grid), axis=0), axis=0)
-            rel_error = np.copy(np.abs(np.divide(ref_grid - test_grid, min_grid)
+            rel_error = np.copy(np.abs(np.divide(ref_grid - test_grid, min_grid)))
         else:
             rel_error = np.copy(np.abs(np.divide(ref_grid - test_grid, ref_grid)))
         return rel_error
@@ -58,10 +58,10 @@ def calc_rel_error(test_grid, ref_grid, divide_by=None, mode="direct"):
            #rel_error[np.isclose(ref_grid, test_grid)] = 0.0
         elif divide_by == "max":
            # Divide by max of the two grids at each point
-           raise NotImplementedError("Option combination not implemented yet: mode ="+mode ", divide_by =" + divide_by)
+           raise NotImplementedError("Option combination not implemented yet: mode ="+mode+", divide_by =" + divide_by)
         elif divide_by == "min":
            # Divide by min of the two grids at each point
-           raise NotImplementedError("Option combination not implemented yet: mode ="+mode ", divide_by =" + divide_by)
+           raise NotImplementedError("Option combination not implemented yet: mode ="+mode+", divide_by =" + divide_by)
         else:
            # Default: Divide by reference grid
            rel_error = np.zeros(test_grid.shape)
@@ -128,8 +128,10 @@ def main():
         # TODO: perhaps can add argument to pick indices of the point?
         shift1_2 = grid1[0,0,0] - grid2[0,0,0]
     else:
-        assert isinstance(args.shift, (float,int)), "ERROR: shift must be \'auto\' or otherwise float (or int) type!"
         shift1_2 = float(args.shift)
+        print(shift1_2)
+        #assert isinstance(shift1_2, (float,int)), "ERROR: shift must be \'auto\' or otherwise float (or int) type!"
+
     
     grid2 = grid2 + shift1_2 # shift to make energies comparable if different normalization
     # General useful information
@@ -191,6 +193,7 @@ def main():
   
     ### Energy range filtering: ### 
     if args.emax is not None:
+        print("Filtering points based on an upper energy limit emax.")
         # Set it to true where either grid is below the threshold:
         emax_indices = np.logical_or((grid1 <= args.emax), (grid2 <= args.emax))
     else:
@@ -200,6 +203,7 @@ def main():
         assert (emax_indices.dtype == np.bool_) and emax_indices.all(), "emax mask is not set to all true!!!"
 
     if args.emin is not None:
+        print("Filtering points based on a lower energy limit emin.")
         # Set it to true where either grid is above the threshold:
         emin_indices = np.logical_or((grid1 >= args.emin), (grid2 >= args.emin))
     else:
@@ -216,29 +220,31 @@ def main():
     ### Grid vdw cutoff filtering: ### 
     if args.vdw is not None:
         # use unitcellsampler to generate the mask:
+        print("Filtering points based on vdw cutoff.")
         sampler1 = sample.UnitCellSampler(atoms1)
         sampler2 = sample.UnitCellSampler(atoms2)
 
         gridpoints1, vdw_incl1 = sampler1.generate_grid_vectors(grid1.shape, vdw_scale=args.vdw, midvox=False)
         gridpoints2, vdw_incl2 = sampler2.generate_grid_vectors(grid2.shape, vdw_scale=args.vdw, midvox=False)
-
+        print("Debug, sum of vdw_incl1:", np.sum(vdw_incl1))
+        print("Debug, sum of vdw_incl2:", np.sum(vdw_incl2))
     else:
         # If it should not be used, set to all true mask:
-        vdw_incl1 = np.ones_like(grid1, dype=np.bool_)
-        vdw_incl2 = np.ones_like(grid2, dype=np.bool_)
+        vdw_incl1 = np.ones_like(grid1, dtype=np.bool_)
+        vdw_incl2 = np.ones_like(grid2, dtype=np.bool_)
 
     assert (vdw_incl1 == vdw_incl2).all(), "Vdw masks vdw_incl1 and vdw_incl2 are different!!!"    
-    vdw_incl = vdw_incl1
+    vdw_incl = np.copy(vdw_incl1)
     vdw_excl = np.logical_not(vdw_incl)
-
+    print("Debug, sum of vdw_incl:", np.sum(vdw_incl))
     ###
 
     ### COMBINATION OF THE MASKS: ###
     grid_mask = np.logical_and(no_problem_indices,
-                               energy_range_mask,
-                               vdw_incl
+                        np.logical_and(energy_range_mask,
+                               vdw_incl)
                                )
-
+    print("Debug, sum of grid_mask:", np.sum(grid_mask))
 
     ### Is the indexing actally working? ###
     ### Printing detailed information about masks: ###
@@ -256,7 +262,7 @@ def main():
     max_len_title = np.max([len(x[0]) for x in cathegories])
     spacing = 5
     for cath in cathegories:
-        print(cath[0] + (max_len_title - len(cath[0]) + spacing)*" " + str(cath[1]))
+        print(cath[0] + (max_len_title - len(cath[0]) + spacing)*" ", cath[1])
     print(79*'-')
     ### Computation of some grid stats   ###
 
@@ -268,9 +274,21 @@ def main():
     print("grid 2 filtered max: ", grid2_filtered_max)
     
     ###
-    
+
+    abs_error_grid = np.empty(grid1.shape, dtype=np.float32)
+    abs_error_grid.fill(np.nan_to_num(np.inf))
+    rel_error_grid = np.empty(grid1.shape, dtype=np.float32)
+    rel_error_grid.fill(np.nan_to_num(np.inf))
+
+
     abs_error = calc_abs_error(grid1[grid_mask], grid2[grid_mask])
+
+    abs_error_grid[grid_mask] = calc_abs_error(grid1[grid_mask], grid2[grid_mask])
+
     rel_error = calc_rel_error(grid1[grid_mask], grid2[grid_mask])
+
+    rel_error_grid[grid_mask] = calc_rel_error(grid1[grid_mask], grid2[grid_mask])
+
     tot_RMSD = calc_RMSD(grid1[grid_mask], grid2[grid_mask])
     
     # Check maximum errors ...
@@ -299,19 +317,19 @@ def main():
     if cube_out:
         with open(abs_error_cube_fname, 'w') as fp:
             print("Writing asbolute error to cube-file: ", fp)
-            write_cube(fp, atoms=atoms1, data=abs_error)
+            write_cube(fp, atoms=atoms1, data=abs_error_grid)
     
         with open(rel_error_cube_fname, 'w') as fp:
             print("Writing relative error to cube-file: ", fp)
-            write_cube(fp, atoms=atoms1, data=rel_error)
+            write_cube(fp, atoms=atoms1, data=rel_error_grid)
     if xsf_out:
         with open(abs_error_xsf_fname, 'w') as fp:
             print("Writing absolute error to xsf-file: ", fp)
-            write_xsf(fp, atoms=atoms1, data=abs_error)
+            write_xsf(fp, atoms=atoms1, data=abs_error_grid)
     
         with open(rel_error_xsf_fname, 'w') as fp:
             print("Writing relative error to xsf-file: ", fp)
-            write_xsf(fp, atoms=atoms1, data=rel_error)
+            write_xsf(fp, atoms=atoms1, data=rel_error_grid)
     
     
     #####
