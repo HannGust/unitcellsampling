@@ -10,11 +10,58 @@ import unitcellsampling.symmetry as symmetry
 from unitcellsampling.preparatory_fcns import remove_nonframework_cations_fancy
 from pathlib import Path
 
+import gemmi
+import itertools as it
 from ase.spacegroup import get_spacegroup
 import pymatgen
 from pymatgen.core import Structure, Lattice
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
+
+
+def find_symmetrically_equivalent_indices(grid_shape, atoms, spacegroup_no=None):
+    """ Finds the indices of symmetrically equivalent points, i.e. the
+        equivalence classes of points due to symmetry, in erms of their
+        indices. Returns a list of indices for each equivalence class."""
+
+    tot_bol_grid = gemmi.Int8Grid()
+
+    if not spacegroup_no:
+        spgroup = gemmi.find_spacegroup_by_number(get_spacegroup(atoms))
+    else:
+        spgroup = gemmi.find_spacegroup_by_number(spacegroup_no)
+
+    tot_bol_grid.spacegroup = spgroup
+
+    tot_bol_grid.set_size(*grid_shape)
+
+
+    eq_class_list = []
+
+    for indx in it.product(range(grid_shape[0]), range(grid_shape[1]), range(grid_shape[2])):
+        if tot_bol_grid.get_value(*indx) != 0:
+            continue
+        else:
+            # Inititalize a new temporary integer grid with all 0 entries            
+            tmp_bol_grid = gemmi.Int8Grid()
+            tmp_bol_grid.spacegroup = spgroup
+            tmp_bol_grid.set_size(*grid_shape)
+
+            # Set the value of the current point to 1, then symmetrize
+            tmp_bol_grid.set_value(*indx, 1)
+            tmp_bol_grid.symmetrize_max()
+
+            # Do the same for the total grid (to keep track of which points have been considered)
+            tot_bol_grid.set_value(*indx, 1)
+            tot_bol_grid.symmetrize_max()
+
+            # Find the list (array) of indices for nonzero entries in the temporary grid, append it to the list of equivalence classes
+            eq_class_list.append(np.argwhere(tmp_bol_grid.array))
+
+    return eq_class_list
+
+
+
 
 parser = argparse.ArgumentParser(description="Computes number of grid points in a structure, both total, to be calculated, and excluded, given specified grid settings.")
 
@@ -69,6 +116,10 @@ if use_sym or args.conv:
         sg_analyzer = SpacegroupAnalyzer(AseAtomsAdaptor.get_structure(init_unitcell))
         conv_cell = sg_analyzer.get_conventional_standard_structure()
         init_unitcell = AseAtomsAdaptor.get_atoms(conv_cell)
+
+## FOR DEBUG/TEST: Is initial spacegroup the same as
+# the one obtained after removing ions???
+init_spgrp = get_spacegroup(init_unitcell)
 
 
 if args.ra:
@@ -155,6 +206,11 @@ if args.printlevel == 1:
     print("Using symmetry: ", use_sym, 
       int(use_sym)*("; Spacegroup number: "+str(spacegroup.no)
          + "; Spacegroup name: " + str(spacegroup.symbol)))
+
+    ## for spacegroup debug
+    print("Init spacegroup number and name: ", str(init_spgrp.no), str(init_spgrp.symbol))
+    print("Inital spacegroup same as after ion removal?: ", init_spgrp == spacegroup)
+    ###
     print("Using conventional cell: ", args.conv)
     print("Midvox-grid: ", args.midvox)
 
@@ -172,12 +228,64 @@ assert np.product(unitcell_grid.shape[0]) == np.product((nx,ny,nz)) == len(unitc
 
 print("Total number of points: ", unitcell_grid.shape[0])
 print("Number of INCLUDED points (i.e. calculations): ", np.sum(unitcell_included))
-print("Number of EXCLUDED points: ", np.sum(np.ones_like(unitcell_included) - 1*unitcell_included))
+print("Number of EXCLUDED points: ", np.sum(np.logical_not(unitcell_included)))
 assert unitcell_grid.shape[0] == (np.sum(unitcell_included) + np.sum(np.ones_like(unitcell_included) - 1*unitcell_included)), "Number of calculations and points does not add up correctly!!!" # Sanity check
 if use_sym:
+    sym_ind = find_symmetrically_equivalent_indices((nx, ny, nz), unitcell)
+    print(type(sym_ind), type(sym_ind[0]))
+    vdw_excluded_ind = np.argwhere(np.logical_not(unitcell_included))
+    vdw_included_ind = np.argwhere(unitcell_included)
+
+    num_excluded_sym_classes = 0
+    excl_sym_classes = []
+
+    num_included_sym_classes = 0
+    incl_sym_classes = []
+    #incl_sym_classes = []
+    for indx_list in sym_ind:
+        #excl_switch = False
+        for excl_ind in vdw_excluded_ind:
+            if list(excl_ind) in indx_list:
+                num_excluded_sym_classes += 1
+                excl_sym_classes.append(indx_list)
+                #excl_switch = True
+                break
+        #if not excl_switch: 
+        #    incl_sym_classes.append(indx_list)
+
+        for incl_ind in vdw_included_ind:
+            if list(incl_ind) in indx_list:
+                num_included_sym_classes += 1
+                incl_sym_classes.append(indx_list)
+                break
+        
+    num_sym_classes_in_both = 0
+    for i in incl_sym_classes:
+        for j in excl_sym_classes:
+            if i.shape == j.shape:
+                if (i == j).all():
+                    num_sym_classes_in_both += 1
+    print("Number of equivalence classes in both excluded and inlcuded", num_sym_classes_in_both )
+
+    print("before scaled coord")
     scaled_grid_coord = np.linalg.solve(np.array(unitcell.cell[:]).T, unitcell_grid.T).T
+    #print("ase_spgrp_1")
+    #ase_spgrp_unique_sites = spacegroup.unique_sites(scaled_grid_coord, map_to_unitcell=True)
+    #print("ase_spgrp_2")
+    #ase_spgrp_unique_sites_incl = spacegroup.unique_sites(scaled_grid_coord[unitcell_included], map_to_unitcell=True)
+
     assert scaled_grid_coord.shape == unitcell_grid.shape, "Scaled and cartesian corodinate arrays do not have the same shape!!!"
     print("Order of spacegroup: ", spacegroup.nsymop)
-    print("Number of symmetry-unique points in full grid: ", len(spacegroup.unique_sites(scaled_grid_coord)))
-    print("Number of INCLUDED symmetry-unique points: ", len(spacegroup.unique_sites(scaled_grid_coord[unitcell_included])))
+    #print("Number of symmetry-unique points in full grid (with ase.spacegroup): ", len(ase_spgrp_unique_sites), ase_spgrp_unique_sites.shape)
+    print("Number of symmetry-unique points in full grid (with gemmi): ", len(sym_ind))
+    #print("Number of INCLUDED symmetry-unique points (ase.spacegroup): ", len(ase_spgrp_unique_sites_incl), type(ase_spgrp_unique_sites_incl), ase_spgrp_unique_sites_incl.shape)
+    print("Number of INCLUDED symmetry-unique points (gemmi): ", len(sym_ind) - num_excluded_sym_classes)
+    print("Number of excluded symmetry-classes (gemmi): ", num_excluded_sym_classes)
+    print("Number of excluded points (gemmi): ", "Sym Classes: ", len(excl_sym_classes), "Total excluded points (unfolding symmetry): ", np.sum([len(indxs) for indxs in excl_sym_classes]))
+
+    print("Number of inlcuded symmetry-classes (gemmi): ", num_included_sym_classes)
+    print("Number of included points (gemmi): ", "Sym Classes: ", len(incl_sym_classes), "Total included points (unfolding symmetry): ", np.sum([len(indxs) for indxs in incl_sym_classes]))
+    print(sym_ind[0],sym_ind[0][0], sym_ind[1][0], sym_ind[2][0], sym_ind[3][0])
+    #print(np.divide([sym_ind[0][0], sym_ind[1][0], sym_ind[2][0], sym_ind[3][0]] ,[nx, ny, nz]))
+    #print(ase_spgrp_unique_sites * np.array((nx,ny,nz)))
 print("-"*79)
