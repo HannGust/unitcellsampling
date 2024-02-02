@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+# Script to print information or construct structure files
+# of convetional cells
+
 from unitcellsampling import symmetry
 import ase.io
 import ase
@@ -28,11 +31,15 @@ def print_line(leng=79):
                  #"Spacegroup order":lambda x : ase.spacegroup.get_spacegroup(x).nsymop
                  #}
 
-
+# Normal Mode - Prints information
 parser = argparse.ArgumentParser()
 parser.add_argument("-f", "--files", type=str, action='store', nargs='+', default=None, help="Files containing the structures to be analysed.")
 parser.add_argument("-d", "--directory", type=str, action='store', default=None, help="Directory containing the structures to be searched among.")
-#parser.add_argument("-o", "--output-directory", type=str, action='store', default=None, help="Directory to put cif files in.")
+#parser.add_argument("-i", "--info-file", type=str, action='store', default=None, help="File to print info to.")
+# For output:
+output_formats=["cif", "cube"]
+parser.add_argument("-o", "--output-format", type=str, action='store', default=None, choices=output_formats, help="Flag enables output of structure files in the desired format. Disables info output.")
+parser.add_argument("-t", "--target-directory", type=str, action='store', default=None, help="Directory to put output files in. Only relevant if -f is given. Default is current directory.")
 
 args = parser.parse_args()
 
@@ -49,9 +56,23 @@ elif args.directory:
 else:
    raise Exception("Either --files or --directory arguments must be set!!! This should not have happened!")
 
-with open("num_Li_table.txt", "a") as f:
-    f.write("   ".join(("Structure","#Li Prim. Cell.","#Li Conv. Cell","Primitive == Conventional?"))+"\n")
-    f.write("-"*len("   ".join(("Structure","#Li Prim. Cell.","#Li Conv. Cell","Primitive == Conventional?")))+"\n")
+
+if args.i:
+    with open("num_Li_table.txt", "a") as f:
+        f.write("   ".join(("Structure","#Li Prim. Cell.","#Li Conv. Cell","Primitive == Conventional?"))+"\n")
+        f.write("-"*len("   ".join(("Structure","#Li Prim. Cell.","#Li Conv. Cell","Primitive == Conventional?")))+"\n")
+
+if args.o and args.t:
+    if not os.path.isdir(args.t):
+         os.makedirs(args.t)
+
+    out_fmt = args.o
+    out_dr = args.t
+    print("Producing output structures of extension: ", out_fmt)
+    print("Placing structures in directory: ", our_dr)
+
+
+
 
 files.sort()
 
@@ -66,34 +87,43 @@ for f in files:
    sg_analyzer = SpacegroupAnalyzer(AseAtomsAdaptor.get_structure(init_unitcell))
    conv_cell = sg_analyzer.get_conventional_standard_structure()
    conv_unitcell = AseAtomsAdaptor.get_atoms(conv_cell)
-   #
-   init_num_Li = np.sum(init_unitcell.symbols == "Li")
-   conv_num_Li = np.sum(conv_unitcell.symbols == "Li")
-   #
-   props = {}
-   props["Is conventional cell"] = is_conv
-   props["Init chemical formula"] = init_unitcell.get_chemical_formula()
-   props["Init num Li"] = init_num_Li
-   props["Init Cell parameters"] = dict(zip(("a","b","c","alpha", "beta", "gamma"), init_unitcell.cell.cellpar()))
 
-   props["Conv. chemical formula"] = conv_unitcell.get_chemical_formula()
-   props["Conv num Li"] = conv_num_Li
-   props["Conv. Cell parameters"] = dict(zip(("a","b","c","alpha", "beta", "gamma"), conv_unitcell.cell.cellpar()))
-
-
+   # information mode:
+   if args.i:
+       #
+       init_num_Li = np.sum(init_unitcell.symbols == "Li")
+       conv_num_Li = np.sum(conv_unitcell.symbols == "Li")
+       #
+       props = {}
+       props["Is conventional cell"] = is_conv
+       props["Init chemical formula"] = init_unitcell.get_chemical_formula()
+       props["Init num Li"] = init_num_Li
+       props["Init Cell parameters"] = dict(zip(("a","b","c","alpha", "beta", "gamma"), init_unitcell.cell.cellpar()))
+    
+       props["Conv. chemical formula"] = conv_unitcell.get_chemical_formula()
+       props["Conv num Li"] = conv_num_Li
+       props["Conv. Cell parameters"] = dict(zip(("a","b","c","alpha", "beta", "gamma"), conv_unitcell.cell.cellpar()))
+    
+    
+       
+       print_line()
+       print("Structure: ", structure)
+       print_line()
+    
+    
+       for k in props.keys():
+           print(k, " : ", props[k])
+       print_line()
    
-   print_line()
-   print("Structure: ", structure)
-   print_line()
+       
+       with open("num_Li_table.txt", "a") as f:
+           f.write("    ".join((str(structure), str(init_num_Li), str(conv_num_Li), str(is_conv)))+"\n")
 
-
-   for k in props.keys():
-       print(k, " : ", props[k])
-   print_line()
-
-   with open("num_Li_table.txt", "a") as f:
-       f.write("    ".join((str(structure), str(init_num_Li), str(conv_num_Li), str(is_conv)))+"\n")
-
+    # Output structure files mode
+    if args.o:
+        out_basename = os.path.splitext(os.path.basename(structure))[0] + "_conv_cell"
+        file_out = os.path.join(our_dr, out_basename, format=out_fmt) 
+        ase.io.write(file_out, conv_unitcell)
 
 
 
