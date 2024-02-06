@@ -2,7 +2,7 @@
    wrapper functions for unitcellsampling."""
 
 import ase
-from ase.calculators.cp2k import CP2K
+from ase.calculators.cp2k import CP2K, Cp2kShell
 from unitcellsampling.decorators import subdir_calc
 
 # Decorator to set need to pass charge attribute
@@ -44,17 +44,40 @@ def pass_cp2k_input(cp2k_calc, parsed_cp2k_input):
     return cp2k_calculator
 
 
+# Define the cp2k_calc_shell resetter:
+def reset_cp2k_shell(cp2k_calculator, debug=False):
+    """Resets the associated cp2k shell of the provided cp2k calculator."""
+
+    if debug:
+        print("Releasing force environment and resetting cp2k shell...")
+        print("Force environment id is: ", cp2k_calculator._force_env_id)
+
+    # Store previous cp2k shell debug setting
+    # This is to inherit and pass on the debug setting, in case it is needed:
+    cp2k_shell_debug = cp2k_calculator._shell._debug
+
+    cp2k_calculator._release_force_env()
+    del(cp2k_calculator._shell)
+
+    if debug:
+        print("Starting new shell ...")
+    cp2k_calculator._shell = Cp2kShell(command=cp2k_calculator.command,
+                                       debug=cp2k_shell_debug)
+
+
 # Function converting a cp2k-calculator to an ucs calculator
 # (i.e. function with singature ase.Atoms -> float
 def cp2k2ucs(cp2k_calc, base_calc_dir="UCS_CALCS/cp2k_calc", base_label="cp2k",
-             update_mode="label", restart=True):
+             update_mode="label", restart=True, shell_reset_freq=500):
     """Embeds an ase CP2K calculator into a function
     with signature atoms -> float,  required for being
     a ucs calculator. Also provides an update scheme for label and 
     directories for individual calculations, and an iteration
-    tracker.
-    update_mode = label, dir or both. Both is default.
-    Other options not implemented."""
+    tracker. A wfn restart functionality is also in place, so
+    that the option of using wfn file from the previous calculation
+    in each step as a wfn restart file exists. This is enabled by
+    default.
+    update_mode = label, dir or both. Label is default."""
 
     # TODO: Possibly implement file-existence check here
     
@@ -63,14 +86,23 @@ def cp2k2ucs(cp2k_calc, base_calc_dir="UCS_CALCS/cp2k_calc", base_label="cp2k",
     dir_switch = 1
     
     if update_mode == "label":
-        dir_swtch = 0
+        dir_switch = 0
     if update_mode == "dir":
         label_switch = 0
          
 
     def ucs_calc(atoms):
         ucs_calc.iter += 1
-         
+
+        # Already here we reset the shell, if iterations matches frequency
+        if ucs_calc.iter % shell_reset_freq == 0:
+            # For debugging:
+            # NOTE: This is for testing - might want to compress the printing
+            print("Calculation iter: ", str(ucs_calc.iter))
+            print("Shell reset frequency: ", str(shell_reset_freq))
+            print("Proceeding with reset of cp2k shell.")
+            reset_cp2k_shell(cp2k_calc, debug=True)
+
         calc_label = base_label + label_switch * ("_" + str(ucs_calc.iter))
         calc_dir = base_calc_dir + dir_switch * ("_" + str(ucs_calc.iter))
 
@@ -83,8 +115,8 @@ def cp2k2ucs(cp2k_calc, base_calc_dir="UCS_CALCS/cp2k_calc", base_label="cp2k",
                                     + str(ucs_calc.iter - 1))
             restart_file = prev_calc_dir + "/" + prev_label + "-RESTART.wfn"
 
-            # The setting needs to be checked:
-            # When it works, embed into function!
+            # The setting needs to be checked -> It works.
+            # TODO: When it works, embed into function!
             # Pseudo code: get original input as str -> parse it to InputSection -> add_c2pk_restart_file to it -> transform back into input -> overwrite input.
             inp_section = ase.calculators.cp2k.parse_input(ucs_calc.init_inp)
             inp_section.add_keyword('FORCE_EVAL/DFT', 'WFN_RESTART_FILE_NAME ' + restart_file)
