@@ -35,7 +35,7 @@ def print_line(leng=79):
 parser = argparse.ArgumentParser()
 parser.add_argument("-f", "--files", type=str, action='store', nargs='+', default=None, help="Files containing the structures to be analysed.")
 parser.add_argument("-d", "--directory", type=str, action='store', default=None, help="Directory containing the structures to be searched among.")
-#parser.add_argument("-i", "--info-file", type=str, action='store', default=None, help="File to print info to.")
+parser.add_argument("-i", "--info-file", type=str, action='store', default=None, help="File to print info to.")
 # For output:
 output_formats=["cif", "cube"]
 parser.add_argument("-o", "--output-format", type=str, action='store', default=None, choices=output_formats, help="Flag enables output of structure files in the desired format. Disables info output.")
@@ -57,19 +57,19 @@ else:
    raise Exception("Either --files or --directory arguments must be set!!! This should not have happened!")
 
 
-if args.i:
+if args.info_file:
     with open("num_Li_table.txt", "a") as f:
         f.write("   ".join(("Structure","#Li Prim. Cell.","#Li Conv. Cell","Primitive == Conventional?"))+"\n")
         f.write("-"*len("   ".join(("Structure","#Li Prim. Cell.","#Li Conv. Cell","Primitive == Conventional?")))+"\n")
 
-if args.o and args.t:
-    if not os.path.isdir(args.t):
-         os.makedirs(args.t)
+if args.output_format:
+    if not os.path.isdir(args.target_directory):
+         os.makedirs(args.target_directory)
 
-    out_fmt = args.o
-    out_dr = args.t
+    out_fmt = args.output_format
+    out_dr = args.target_directory
     print("Producing output structures of extension: ", out_fmt)
-    print("Placing structures in directory: ", our_dr)
+    print("Placing structures in directory: ", out_dr)
 
 
 
@@ -89,7 +89,7 @@ for f in files:
    conv_unitcell = AseAtomsAdaptor.get_atoms(conv_cell)
 
    # information mode:
-   if args.i:
+   if args.info_file:
        #
        init_num_Li = np.sum(init_unitcell.symbols == "Li")
        conv_num_Li = np.sum(conv_unitcell.symbols == "Li")
@@ -120,10 +120,10 @@ for f in files:
            f.write("    ".join((str(structure), str(init_num_Li), str(conv_num_Li), str(is_conv)))+"\n")
 
     # Output structure files mode
-    if args.o:
-        out_basename = os.path.splitext(os.path.basename(structure))[0] + "_conv_cell"
-        file_out = os.path.join(our_dr, out_basename, format=out_fmt) 
-        ase.io.write(file_out, conv_unitcell)
+   if args.output_format:
+       out_basename = os.path.splitext(os.path.basename(structure))[0] + "_conv_cell." + out_fmt
+       file_out = os.path.join(out_dr, out_basename,) 
+       ase.io.write(file_out, conv_unitcell, format=out_fmt)
 
 
 
