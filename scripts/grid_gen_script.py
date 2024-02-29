@@ -175,6 +175,8 @@ parser.add_argument('--cp2k_template', type=str, action='store', help="Specify t
 
 parser.add_argument('--cp2k_wfn_mode', type=str, action='store', default=None, choices=[None, 'off', 'on', 'seq'], help="Specify the cp2k wfn guess mode, i.e. how the SCF_GUESS is set. By default, it is off. \"on\" or \"seq\" uses a simple sequential strategy, in which each subsequent calculation uses the resulting wfn file from the previous calculation. Only relevant for methods using DFT cp2k methods.")
 
+parser.add_argument('--cp2k_shell_reset_freq', type=int, action='store', default=500, help="Specify the frequency with which the CP2K-shell is re-instantiated, i.e. reset. If this frequency is N, the cp2k shell is killed and restarted every N:th calculation. This is too avoid the logical unit error arising from too many io-units assigned in the cp2k fortran source code. Too disable this, either set it to a higher number than the total number of calculations, or set it to a value <=0. In the latter case the program will automatically set it to a high value so that no reset is performed. Default: 500")
+
 # CP2K command argument - REDUNDANT FOR NOW
 #parser.add_argument('--cp2k_cmd', '--cp2k-command', type=str, action='store', default=default_cp2k_cmd, help="Specify the CP2K-command that is used in the ASE-CP2K calculator interface to start and run the CP2K program. Default: ")
 # Minimum-image-convention cutoff argument
@@ -364,8 +366,8 @@ if method in cp2k_dft_methods.keys():
         raise Exception('Environment variable ASE_CP2K_COMMAND was not set!\
                 Please set this to the desired CP2K command!')
     assert isinstance(ase_cp2k_command, str)
-    print("CP2K command used is the ASE_CP2K_COMMAND environment\
-            variable.")
+    print("CP2K command used is the ASE_CP2K_COMMAND environment "\
+            "variable.")
     print("$ASE_CP2K_COMMAND = ", ase_cp2k_command)
 
 
@@ -567,12 +569,25 @@ elif method in cp2k_dft_methods.keys() and method == "cp2k_calculator_from_input
     else:
         wfn_restart = False
 
+
+    # Manage and control the cp2k shell reset frequency setting
+    assert isinstance(args.cp2k_shell_reset_freq, int), "ERROR: Shell reset frequency must be integer!!!"
+    if args.cp2k_shell_reset_freq <= 0:
+        print("CP2K-shell frequency is <= 0. Setting it to 1 + total number of grid points, to disable it.")
+        args.cp2k_shell_reset_freq = int(nx + ny + nz) + 1 # Set it to more than the total number of grid points
+        print("CP2K-shell reset frequency was set to: ", args.cp2k_shell_reset_freq)
+        print("This should be 1 + total number of grid points!")
+
+    print("Shell reset frequency:", args.cp2k_shell_reset_freq)
+
     # Turn the constructed calculator into a UCS compatible one
     # i.e. singature atoms -> float (energy)
     cp2k_calc = cp2k2ucs(cp2k_calc_from_inp, 
                     base_calc_dir="UCS_CALCS/" + input_basename + "_" + str(args.name) + "/calc",
                     base_label="cp2k",
-                    restart=wfn_restart)
+                    update_mode="label",
+                    restart=wfn_restart,
+                    shell_reset_freq=args.cp2k_shell_reset_freq)
 
     # Print the wfn mode setting:
     if wfn_restart:
