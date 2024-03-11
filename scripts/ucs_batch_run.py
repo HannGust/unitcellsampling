@@ -865,7 +865,7 @@ if args.cp2k_template is not None:
     batch_log.write("Passing cp2k_template.\n")
     
 if args.cp2k_q is not None:
-    args_to_pass.extend(["--cp2k_q", str(args.cp2k_q)])
+    args_to_pass.extend(["--cp2k_q", str(int(args.cp2k_q))])
     batch_log.write("Passing cp2k_q.\n")
 
 # TODO: Remove passing of cp2k_aq - it isn't needed!
@@ -1002,7 +1002,7 @@ else:
         batch_subdir_name = batch_wd+"/BATCH"+str(batchnr)
         os.chdir(batch_subdir_name)
         #batch_log.write("Simulating running batch: " + str(batchnr) + " from directory: " + str(os.getcwd()) + "\nShould be: " + str(batch_subdir_name)+"\n")
-        batch_log.write("Running batch " + str(batchnr) + " from: " + str(os.getcwd()))
+        batch_log.write("Running batch " + str(batchnr) + " from: " + str(os.getcwd())+ "\n")
         #pwd_proc = subprocess.run(["pwd"], check=True)
         #print(pwd_proc.stdout)
         subprocess.run(run_cmd) # Here it is run!
