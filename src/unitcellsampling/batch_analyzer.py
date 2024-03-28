@@ -400,9 +400,11 @@ class UCSBatchAnalyzer():
             raise ValueError("ERROR: Cannot sanity check no-existent index arrays. Set index arrays first.")
  
         full_stacked_indices = np.vstack(self.index_arrays)
+        stacked_unique_indices, inv_indx = np.unique(full_stacked_indices, axis=0, return_inverse=True)
         
-        # Check uniqueness:
-        assert (full_stacked_indices == np.unique(full_stacked_indices,axis=0)).all(), "ERROR: Full index array is not unique!!!"
+        # Check uniqueness: Both check shape, and full arrays
+        assert stacked_unique_indices.shape == full_stacked_indices.shape, "ERROR: Full stacked index array is not unique, shape mismatch!!!"
+        assert (full_stacked_indices == stacked_unique_indices[inv_indx]).all(), "ERROR: Full index array is not unique!!!"
         
 
     def compile_grid(self):
