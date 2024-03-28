@@ -42,7 +42,7 @@ def read_array(file, dtype=np.float64):
 def read_indices(file):
     """Read indices from a batch indices file generated in a ucs batch run.
     """
-    indices = read_array(file)
+    indices = np.atleast_2d(read_array(file))
     try:
         indices.astype(int, casting='safe')
     except:
@@ -416,12 +416,30 @@ class UCSBatchAnalyzer():
         grid_shape = self.grid_shape_from_log()
         use_symmetry, spgrp = self.symmetry_from_log()
 
-        # Determine spacegroup from structure
-        spgrp_from_atoms = get_spacegroup(self.atoms)
+        # Determine spacegroup from structure, and
+        # assert spacegroups detemrined this way and read from log
+        # are identical, if using symmetry.
+        # Added possibility to relax the precision when determining
+        # the spacegroup a little if necessary
+        symprec = 10**-5
+        max_symprec = 10**-3
 
-        # Assert spacegroups are identical, if using symmetry
         if use_symmetry:
-            assert spgrp == spgrp_from_atoms, "ERROR: Spacegroups based on log vs. structure are not the same!!!"
+            while True:
+                spgrp_from_atoms = get_spacegroup(self.atoms, symprec=symprec)
+                try:
+                    assert spgrp == spgrp_from_atoms, "ERROR: Spacegroups based on log vs. structure are not the same!!!"
+                except AssertionError as ass_err:
+                    if symprec < max_symprec:
+                        print("WARNING: Spacegroup mismatch occurred at symmetry precision: ", symprec)
+                        symprec = 10.0*symprec
+                        continue
+                    else:
+                        raise AssertionError("Spacegroup mismatch at maximum symprec tolerance ", symprec) from ass_err
+                else:
+                    print("Spacegroup read from log vs. determined from structure equal at symprec: ", symprec)
+                    break
+
         
         # Check indices
         idx_arrs = self.collect_index_arrays()
@@ -476,9 +494,17 @@ class UCSBatchAnalyzer():
 
             gemmi_float_grid.symmetrize_max()
             grid = np.array(gemmi_float_grid.array, dtype=np.float32)
+
+            fill_value = np.nan_to_num(np.array(np.inf, dtype=np.float32))
+            if not (grid >= 0.0).all():
+                assert np.max(grid[grid < 0.0]) == -fill_value, "ERROR: Grid has negative values that are not -np.inf!!?"
+                grid[np.isclose(grid, -fill_value)] = fill_value
         else:
-            np.nan_to_num(grid, copy=False)
-        
+            fill_value = np.nan_to_num(np.inf)
+
+        # Fill the remaining unsampled points:
+        np.nan_to_num(grid, copy=False, nan=fill_value, neginf=fill_value)
+    
         self.grid = grid
         return self.grid
     
