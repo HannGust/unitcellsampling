@@ -262,6 +262,12 @@ parser.add_argument('--cp2k_template', type=str, action='store', help="Specify t
 
 parser.add_argument('--cp2k_wfn_mode', type=str, action='store', default=None, choices=[None, 'off', 'on', 'seq'], help="Specify the cp2k wfn guess mode, i.e. how the SCF_GUESS is set. By default, it is off. \"on\" or \"seq\" uses a simple sequential strategy, in which each subsequent calculation uses the resulting wfn file from the previous calculation. Only relevant for methods using DFT cp2k methods.")
 
+parser.add_argument('--cp2k_basis_set', type=str, action='store', default=None, help="Specify the cp2k basis set, which will be applied to all atoms. By default, it is None, and in this case the sampler will not tamper with the basis set option for any atoms - it has to be manually specified in the template, if applicable. Only relevant for methods using DFT cp2k methods. Can be e.g. DVZP-MOLOPT-SR-GTH, DZV-MOLOPT-GTH, DZV-MOLOPT-SR-GTH.")
+
+parser.add_argument('--cp2k_pseudo_pot', type=str, action='store', default=None, help="Specify the cp2k pseudo potential, which will be applied to all atoms. By default, it is None, and in this case the sampler will not tamper with the pseudo potential  option for any atoms - it has to be manually specified in the template, if applicable. Only relevant for methods using DFT cp2k methods. Can be e.g. GTH-PBE, or auto, which enables automatic selection within the ase cp2k calculator.")
+
+parser.add_argument('--cp2k_print_level', type=str, action='store', default="MEDIUM", choices=[None, "SILENT", "LOW", "MEDIUM", "HIGH", "DEBUG"], help="Specify the global print level in the cp2k output. If None, it has to be specified in the template, if applicable, or the CP2K default will apply. Only relevant for methods using DFT cp2k methods. Default: MEDIUM")
+
 parser.add_argument('--cp2k_shell_reset_freq', type=int, action='store', default=500, help="Specify the frequency with which the CP2K-shell is re-instantiated, i.e. reset. If this frequency is N, the cp2k shell is killed and restarted every N:th calculation. This is too avoid the logical unit error arising from too many io-units assigned in the cp2k fortran source code. Too disable this, either set it to a higher number than the total number of calculations, or set it to a value <=0. In the latter case the program will automatically set it to a high value so that no reset is performed. Default: 500")
 
 # CP2K command argument - REDUNDANT FOR NOW
@@ -681,9 +687,26 @@ if method in cp2k_dft_methods.keys() and method == "cp2k_calculator_from_input":
     # Manage wfn file usage:
     if args.cp2k_wfn_mode in ['on', 'seq']:
         wfn_restart = True
+        batch_log.write("cp2k_wfn_mode = " + str(args.cp2k_wfn_mode) + ": Reusing consecutive wfn-files as initial guess.\n")
     else:
         wfn_restart = False
+        batch_log.write("cp2k_wfn_mode = " + str(args.cp2k_wfn_mode) + ": Disabled. Wfn files are not used.\n")
 
+
+    if args.cp2k_basis_set is not None:
+        batch_log.write("CP2K basis set specified: " + str(args.cp2k_basis_set) + "\n")
+    else:
+        batch_log.write("No CP2K basis set provided (= None): Basis set taken to be specified in input template or implicitly in the method.\n")
+    
+    if args.cp2k_pseudo_pot is not None:
+        batch_log.write("CP2K pseudo potential specified: " + str(args.cp2k_pseudo_pot) + "\n")
+    else:
+        batch_log.write("No CP2K pseudo potential provided (= None): Pseudo potential taken to be specified in input template or implicitly in the method.\n")
+
+    if args.cp2k_print_level is not None:
+        batch_log.write("CP2K print level: " + str(args.cp2k_print_level) + "\n")
+    else:
+        batch_log.write("CP2K print level not set in sampler.\n")
 
     # Manage and control the cp2k shell reset frequency setting
     assert isinstance(args.cp2k_shell_reset_freq, int), "ERROR: Shell reset frequency must be integer!!!"
@@ -876,6 +899,19 @@ if args.cp2k_q is not None:
 if args.cp2k_wfn_mode is not None:
     args_to_pass.extend(["--cp2k_wfn_mode", str(args.cp2k_wfn_mode)])
     batch_log.write("Passing cp2k_wfn_mode.\n")
+
+# TODO; Add passing of cp2k_basis_set, pseudo pot, and print level
+if args.cp2k_basis_set is not None:
+    args_to_pass.extend(["--cp2k_basis_set", str(args.cp2k_basis_set)])
+    batch_log.write("Passing cp2k_basis_set.\n")
+
+if args.cp2k_pseudo_pot is not None:
+    args_to_pass.extend(["--cp2k_pseudo_pot", str(args.cp2k_pseudo_pot)])
+    batch_log.write("Passing cp2k_pseudo_pot.\n")
+
+if args.cp2k_print_level is not None and "--cp2k_print_level" in full_arguments_list:
+    args_to_pass.extend(["--cp2k_print_level", str(args.cp2k_print_level)])
+    batch_log.write("Passing cp2k_print_level.\n")
 
 # TODO: add passing of cp2k shell reset frequency here
 if args.cp2k_shell_reset_freq is not None and "--cp2k_shell_reset_freq" in full_arguments_list:
