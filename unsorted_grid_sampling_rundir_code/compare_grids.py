@@ -78,17 +78,17 @@ def compute_grid_rmsd(grid1, grid2):
 def compute_grid_rel_error(grid1, grid2):
     """Computes number of NaNs, Inf and otherwise computes relative difference between grids."""
     rel_err_grid = np.empty(grid1.shape)
-    #print("Is None 1:", rel_err_grid is None)
+    print("Is None 1:", rel_err_grid is None)
     rel_err_grid.fill(np.nan_to_num(np.inf))
-    #print("Is None 2:", rel_err_grid is None) 
+    print("Is None 2:", rel_err_grid is None) 
     diff_grid = compute_diff_grid(grid1, grid2)
-    #print("Is None 3:", diff_grid is None)
+    print("Is None 3:", diff_grid is None)
     nonzero_grid1 = grid1[grid1 != 0.0] 
 
-    #print("Is None 4:", nonzero_grid1 is None)
+    print("Is None 4:", nonzero_grid1 is None)
     rel_err_grid[diff_grid == 0.0] = 0.0
     rel_err_grid[grid1 != 0.0] = np.abs(diff_grid[grid1 != 0.0]/grid1[grid1 != 0.0])
-    #print("Is None 5:", rel_err_grid is None)
+    print("Is None 5:", rel_err_grid is None)
     assert rel_err_grid.shape == grid1.shape, "Relative error grid has different shape from input grid! Something went wrong!"
 
     return rel_err_grid
@@ -303,39 +303,9 @@ if __name__ == '__main__':
         
         grid1 = grids[0] 
         grid2 = grids[1]
-
-        # Apply energy filtering if desired:
-        e_thresh = 10.0**3
-        energy_grid_mask = grid1 < e_thresh
-        print("Applying energy mask of", e_thresh, "based on grid 1.")
-        print("Total points:", grid1.size)
-        print("Num points above/below thresh:", np.sum(energy_grid_mask), energy_grid_mask.size - np.sum(energy_grid_mask))
-        #
-        print("Sanity check, grid maxima after filtering:", np.max(grid1[energy_grid_mask]), np.max(grid2[energy_grid_mask]))
-        print("")
-         
-        diff_grid_1, abs_diff_grid_1, rel_diff_grid_1, rmsd = compare_grids(grid1, grid2)
-        #diff_grid, abs_diff_grid, rel_diff_grid, rmsd = compare_grids(grid1[energy_grid_mask], grid2[energy_grid_mask])
-        diff_grid, abs_diff_grid, rel_diff_grid = diff_grid_1[energy_grid_mask], abs_diff_grid_1[energy_grid_mask], rel_diff_grid_1[energy_grid_mask]
-
-        masked_rmsd = compute_grid_rmsd(grid1[energy_grid_mask], grid2[energy_grid_mask])
-        print()
-        print("Grid difference stats: ")
+        diff_grid, abs_diff_grid, rel_diff_grid, rmsd = compare_grids(grid1, grid2)
+        
         print("RMSD: ", rmsd)
-        print("RMSD, (energy masked): ", masked_rmsd)
-        print()
-        print("Mean diff: ", np.mean(diff_grid))
-        print("Max diff: ", np.max(diff_grid))
-        print("Min diff: ", np.min(diff_grid))
-        print()
-        print("Mean abs diff: ", np.mean(abs_diff_grid))
-        print("Max abs diff: ", np.max(abs_diff_grid))
-        print("Min abs diff: ", np.min(abs_diff_grid))
-        print()
-        print("Mean rel diff: ", np.mean(rel_diff_grid))
-        print("Max rel diff: ", np.max(rel_diff_grid))
-        print("Min rel diff: ", np.min(rel_diff_grid))
- 
 
         diff_out_name = "_".join(("difference",) + tuple(Path(file).stem for file in args.files) + (".cube",))
         abs_diff_out_name = "_".join(("abs", diff_out_name))
