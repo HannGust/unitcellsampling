@@ -175,6 +175,14 @@ parser.add_argument('--cp2k_template', type=str, action='store', help="Specify t
 
 parser.add_argument('--cp2k_wfn_mode', type=str, action='store', default=None, choices=[None, 'off', 'on', 'seq'], help="Specify the cp2k wfn guess mode, i.e. how the SCF_GUESS is set. By default, it is off. \"on\" or \"seq\" uses a simple sequential strategy, in which each subsequent calculation uses the resulting wfn file from the previous calculation. Only relevant for methods using DFT cp2k methods.")
 
+parser.add_argument('--cp2k_basis_set', type=str, action='store', default=None, help="Specify the cp2k basis set, which will be applied to all atoms. By default, it is None, and in this case the sampler will not tamper with the basis set option for any atoms - it has to be manually specified in the template, if applicable. Only relevant for methods using DFT cp2k methods. Can be e.g. DVZP-MOLOPT-SR-GTH, DZV-MOLOPT-GTH, DZV-MOLOPT-SR-GTH.")
+
+parser.add_argument('--cp2k_pseudo_pot', type=str, action='store', default=None, help="Specify the cp2k pseudo potential, which will be applied to all atoms. By default, it is None, and in this case the sampler will not tamper with the pseudo potential  option for any atoms - it has to be manually specified in the template, if applicable. Only relevant for methods using DFT cp2k methods. Can be e.g. GTH-PBE, or auto, which enables automatic selection within the ase cp2k calculator.")
+
+parser.add_argument('--cp2k_print_level', type=str, action='store', default="MEDIUM", choices=[None, "SILENT", "LOW", "MEDIUM", "HIGH", "DEBUG"], help="Specify the global print level in the cp2k output. If None, it has to be specified in the template, if applicable, or the CP2K default will apply. Only relevant for methods using DFT cp2k methods. Default: MEDIUM")
+
+parser.add_argument('--cp2k_shell_reset_freq', type=int, action='store', default=500, help="Specify the frequency with which the CP2K-shell is re-instantiated, i.e. reset. If this frequency is N, the cp2k shell is killed and restarted every N:th calculation. This is too avoid the logical unit error arising from too many io-units assigned in the cp2k fortran source code. Too disable this, either set it to a higher number than the total number of calculations, or set it to a value <=0. In the latter case the program will automatically set it to a high value so that no reset is performed. Default: 500")
+
 # CP2K command argument - REDUNDANT FOR NOW
 #parser.add_argument('--cp2k_cmd', '--cp2k-command', type=str, action='store', default=default_cp2k_cmd, help="Specify the CP2K-command that is used in the ASE-CP2K calculator interface to start and run the CP2K program. Default: ")
 # Minimum-image-convention cutoff argument
@@ -364,8 +372,8 @@ if method in cp2k_dft_methods.keys():
         raise Exception('Environment variable ASE_CP2K_COMMAND was not set!\
                 Please set this to the desired CP2K command!')
     assert isinstance(ase_cp2k_command, str)
-    print("CP2K command used is the ASE_CP2K_COMMAND environment\
-            variable.")
+    print("CP2K command used is the ASE_CP2K_COMMAND environment "\
+            "variable.")
     print("$ASE_CP2K_COMMAND = ", ase_cp2k_command)
 
 
@@ -542,9 +550,9 @@ elif method in cp2k_dft_methods.keys() and method == "cp2k_calculator_from_input
         parsed_cp2k_input = "".join(f_inp.readlines()) 
 
     # Now create the calculator
-    cp2k_kwargs = dict(print_level="MEDIUM",
-                       basis_set="DZVP-MOLOPT-SR-GTH",
-                       pseudo_potential="auto")
+    cp2k_kwargs = dict(print_level=args.cp2k_print_level,
+                       basis_set=args.cp2k_basis_set,
+                       pseudo_potential=args.cp2k_pseudo_pot)
 
     # TODO: This has been updated in cp2k_calculators.py. Testing needs to be done
     if args.cp2k_q is not None:
@@ -567,12 +575,42 @@ elif method in cp2k_dft_methods.keys() and method == "cp2k_calculator_from_input
     else:
         wfn_restart = False
 
+
+    if args.cp2k_basis_set is not None:
+        print("CP2K basis set specified: " + str(args.cp2k_basis_set) + "\n")
+    else:
+        print("No CP2K basis set provided (= None): Basis set taken to be specified in input template or implicitly in the method.\n")
+    
+    if args.cp2k_pseudo_pot is not None:
+        print("CP2K pseudo potential specified: " + str(args.cp2k_pseudo_pot) + "\n")
+    else:
+        print("No CP2K pseudo potential provided (= None): Pseudo potential taken to be specified in input template or implicitly in the method.\n")
+
+    if args.cp2k_print_level is not None:
+        print("CP2K print level: " + str(args.cp2k_print_level) + "\n")
+    else:
+        print("CP2K print level not set in sampler.\n")
+
+
+
+    # Manage and control the cp2k shell reset frequency setting
+    assert isinstance(args.cp2k_shell_reset_freq, int), "ERROR: Shell reset frequency must be integer!!!"
+    if args.cp2k_shell_reset_freq <= 0:
+        print("CP2K-shell frequency is <= 0. Setting it to 1 + total number of grid points, to disable it.")
+        args.cp2k_shell_reset_freq = int(nx + ny + nz) + 1 # Set it to more than the total number of grid points
+        print("CP2K-shell reset frequency was set to: ", args.cp2k_shell_reset_freq)
+        print("This should be 1 + total number of grid points!")
+
+    print("Shell reset frequency:", args.cp2k_shell_reset_freq)
+
     # Turn the constructed calculator into a UCS compatible one
     # i.e. singature atoms -> float (energy)
     cp2k_calc = cp2k2ucs(cp2k_calc_from_inp, 
                     base_calc_dir="UCS_CALCS/" + input_basename + "_" + str(args.name) + "/calc",
                     base_label="cp2k",
-                    restart=wfn_restart)
+                    update_mode="label",
+                    restart=wfn_restart,
+                    shell_reset_freq=args.cp2k_shell_reset_freq)
 
     # Print the wfn mode setting:
     if wfn_restart:

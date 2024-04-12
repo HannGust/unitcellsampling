@@ -42,7 +42,8 @@ class UnitCellSampler:
                            fractional=False,
                            method='random',
                            atom='Li',
-                           exploit_symmetry=True):
+                           exploit_symmetry=True,
+                           normalize=True):
         """Calculate energy for `atom` on each grid point within a unitcell
 
         Parameters
@@ -206,11 +207,15 @@ class UnitCellSampler:
             print("Symmetry used: Casting to np.float32 before grid normalization.")
             energies = energies.astype(np.float32)
         
-        min_grid_energy = energies.min()
-        print("Normalizing grid by shifting minimum energy to 0.0, i.e. subtracting minimum energy.")
-        print("Minimum grid energy: ", min_grid_energy)
-        print("Added shift: ", -min_grid_energy)
-        energies = energies - energies.min()
+        if normalize:
+            min_grid_energy = energies.min()
+            print("Normalizing grid by shifting minimum energy to 0.0, i.e. subtracting minimum energy.")
+            print("Minimum grid energy: ", min_grid_energy)
+            print("Added shift: ", -min_grid_energy)
+            energies = energies - min_grid_energy
+        else:
+            print("normalize =", normalize)
+            print("Final normalization of grid disabled: minimum energy is NOT shifted to 0.0.")
         np.nan_to_num(energies, copy=False)
 
         return energies.reshape(included_grid_points.shape)
