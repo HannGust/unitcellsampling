@@ -915,7 +915,7 @@ if args.cp2k_print_level is not None and "--cp2k_print_level" in full_arguments_
 
 # TODO: add passing of cp2k shell reset frequency here
 if args.cp2k_shell_reset_freq is not None and "--cp2k_shell_reset_freq" in full_arguments_list:
-    args_to_pass.extend(["--cp2k_shell_reset_freq", str(args.cp2k_reset_freq)])
+    args_to_pass.extend(["--cp2k_shell_reset_freq", str(args.cp2k_shell_reset_freq)])
     batch_log.write("Passing cp2k_shell_reset_freq.\n")
 
 
