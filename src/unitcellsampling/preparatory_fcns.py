@@ -103,27 +103,35 @@ def unitcell_to_supercell_frac_coords(coords, size:tuple, unitcell_ind=None):
     # Then we are interested in the unitcell ((nx+1)/2, (ny+1)/2, (nz+1)/2) since it has (ni+1)/2 - 1 = (ni-1)/2 = ni - (ni+1)/2, i.e. the same number of unitcells on each side.
     assert isinstance(size, tuple), "Error: size argument must be tuple."
     
-    assert isinstance(unitcell_ind, (type(None), tuple)), "Unitcell index must be tuple or None."
+    assert isinstance(unitcell_ind, (type(None), tuple, int, str)), "Unitcell index must be None, tuple, int or str type."
 
     if len(size) == 1:
-        size = size*3
-
-    nx,ny,nz = size
-
-    if nx % 2 == 0:
-        nx -= 1
-    if ny % 2 == 0:
-        ny -= 1
-    if nz % 2 == 0:
-        nz -= 1
+        size = size*3 
     
+    if unitcell_ind in ["center", "central", "middle"]:
+        nx,ny,nz = size
+        if nx % 2 == 0:
+            nx -= 1
+        if ny % 2 == 0:
+            ny -= 1
+        if nz % 2 == 0:
+            nz -= 1
+        unitcell_ind = np.array(((nx-1)/2, (ny-1)/2, (nz-1)/2))
+
+    elif unitcell_ind is None:
+        unitcell_ind = np.array((0,0,0))
+
+    elif isinstance(unitcell_ind, int):
+        unitcell_ind = (unitcell_ind,) * 3
+   
+    # transform coords: add unitcell index to unitcell scaled coordinates
     supercell_coords = np.copy(np.array(coords)).reshape(-1,3)
+    unitcell_shift = np.array(unitcell_ind).reshape(-1,3)
+    supercell_coords += unitcell_shift
+
+    # Now it is shifted to correct unitcell. Then rescale to supercell
+    # scaled coordinates, by dividing with supercell size:
     supercell_coords = np.divide(supercell_coords, np.array(size).reshape(-1,3))
-    
-    if unitcell_ind is None:
-        unitcell_ind = np.array(((nx-1)/(2*nx), (ny-1)/(2*ny), (nz-1)/(2*nz)))
-    
-    supercell_coords += unitcell_ind
 
     return supercell_coords
 
