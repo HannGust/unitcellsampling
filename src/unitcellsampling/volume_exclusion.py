@@ -15,19 +15,8 @@ import numpy as np
 from mendeleev import element
 from sklearn.neighbors import KDTree
 
-import unitcellsampling.sample
-from unitcellsampling.sample import UnitCellSampler as UCS
 from unitcellsampling.preparatory_fcns import compute_req_supercells
 from unitcellsampling.preparatory_fcns import unitcell_to_supercell_frac_coords
-
-#### IDEAS 
-# I could either create these classes and apply them as functions 
-# That is, the contain the strategy to exclude, but not the 
-# information about anything else, like the grid, or so.
-#
-# I could also make the m contain the informaiton about the grid, atoms and so on.
-# I think maybe the first approach is better.
-####
 
 # Not finished - might become something at a later point
 # Not planned currently.
@@ -81,7 +70,7 @@ class RadialExcluder:
 
 
     def get_radii_list(self, atoms:ase.Atoms):
-        """Constructs and returns a list of radii."""
+        """Constructs and returns a list of cutoff radii."""
 
         cutoff_radii = [self.atomtype2radius_map[atom] if atom in self.atomtype2radius_map.keys() else self.atomtype2radius_map["default"] for atom in atoms.get_chemical_symbols()]
         return cutoff_radii
@@ -160,8 +149,8 @@ class RadialExcluder:
 
 
     def construct_cutoff_filters(self, atoms, grid_coords, frac_input=False, periodic=True):
-        """Constructs masks that yields included and excluded points according to
-        the raidal cutoff."""
+        """Constructs boolean array masks that yields included and excluded points according to
+        the radial cutoffs."""
         assert isinstance(grid_coords, np.ndarray) and len(grid_coords.shape) == 2 and grid_coords.shape[1] == 3, "grid_coords must be shape (n, 3) numpy-array."
         # What do we need to do?
         # We need to first, if perioic is True, we need to make sure we construct
@@ -202,10 +191,6 @@ class RadialExcluder:
             sc_size = (sc_nx, sc_ny, sc_nz)
             P = np.diag(np.array(sc_size))
             supercell = ase.build.make_supercell(atoms, P, wrap=True)
-
-            # Should this be fractional coordinates? Yes? Maybe? 
-            # the uc to sc cart coord function does not include the unitcell index...
-            # Thus, I want to have control
             
             # Let nx be number of uc in x direction. Then the indices are 0, 1, ..., nx-1.
             # nx is odd, hence nx-1 is even. (nx-1)/2 is an integer. This has (nx-1)/2 
@@ -271,14 +256,14 @@ class RadialExcluder:
         # Now, use the uniq_indices to obtain a filer for grid coords
         
         within_cutoff_mask = np.full(grid_coords.shape[0], fill_value=False, dtype=np.bool8)
-        
-        outside_cutoff_mask_test = np.full(grid_coords.shape[0], fill_value=True, dtype=np.bool8)
-
         np.put(within_cutoff_mask, uniq_indices, True, mode="raise")
-        
+
+        outside_cutoff_mask_test = np.full(grid_coords.shape[0], fill_value=True, dtype=np.bool8)
         np.put(outside_cutoff_mask_test, uniq_indices, False, mode="raise")
+
         outside_cutoff_mask = np.logical_not(within_cutoff_mask)
 
+        # Sanity check of the outide cutoff mask:
         assert (outside_cutoff_mask == outside_cutoff_mask_test).all(), "outside_cutoff_mask differs with different methods!"
 
         return within_cutoff_mask, outside_cutoff_mask
@@ -312,10 +297,8 @@ class ScaledVdWExcluder:
         # Note, dividing with 100 to get to Ångström from picometer
         #radii = must be dict of atom-types to radii in Ångström
         # This is obtained from scaling each atom type with its
-        # desirec radii
-        #required_atom_types = list(dict.fromkeys(atoms.get_chemical_symbols()))
-        #existing_atom_types = [atomtype if atomtype != "default" 
-        #                       for atomtype in self.vdw_scaling_map.keys()]
+        # desired radii
+        
         scaled_vdw_radii_map = {
             atom:(element(atom).vdw_radius * self.vdw_scaling_map[atom]/100.0)
             if atom in self.vdw_scaling_map.keys()
