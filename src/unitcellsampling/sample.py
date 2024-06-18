@@ -8,6 +8,8 @@ import time
 from mendeleev import element
 from sklearn.neighbors import KDTree
 from unitcellsampling import energy_calculator
+from unitcellsampling import volume_exclusion
+from unitcellsampling.volume_exclusion import RadialExcluder, ScaledVdWExcluder
 
 
 def get_cartesian_coords(fractional_coords, cell_vectors) -> np.ndarray:
@@ -220,8 +222,11 @@ class UnitCellSampler:
 
         return energies.reshape(included_grid_points.shape)
 
-    def generate_grid_vectors(self, n_frac=(10, 10, 10), abs=None,
-                              vdw_scale=0.75, midvox=False, charge_scale=None):
+    def generate_grid_vectors(self, n_frac=(10, 10, 10), abs=None, 
+                              cutoff_radii=0.0, 
+                              vdw_scale=None, 
+                              midvox=False, 
+                              charge_scale=None):
         """Get gridpoint vectors in the unitcell for the use of the
         TuTraSt methodology.
 
@@ -235,19 +240,29 @@ class UnitCellSampler:
             for the a, b and c direction in the unit cell respectively.
 
         abs
-            3D vector or integer specifying the spacing (in Ångström)
+            3D vector or float specifying the spacing (in Ångström)
             between grid points for the a, b and c direction in the unit
             cell respectively.
 
+        cutoff_radii
+            Single radius or dictionary mapping of atomic symbols to radii
+            in Ångström, for use in spherical cutoffs. That is, exclusion of
+            points within a radius of the framework atoms.
+            
+
         vdw_scale
-            Scaling factor Van der Waals radius
+            Scaling factor or dictionary mapping from atomic symbols to 
+            scaling factors, to use for scaling van der Waals radii. This
+            is used for a spherical cutoff based on scaled van der Waals
+            radii, e.g. exclusion of points within a radius of the framework
+            atoms.
 
         midvox
             Setting that specifies that grid points should be the 
             midpoint of voxels, rather than the corners. Corresponds to
             shifting the grid point coordinates with the vector 
             0.5 * (a/nx, b/ny, c/nz), i.e. half of the corresponding 
-            spacing in each direction.
+            grid spacing in each direction.
 
         charge_scale
             If set vdw_radius will be weighted by the atomic charge via
@@ -293,55 +308,69 @@ class UnitCellSampler:
             b_mesh += 0.5 * (self.atoms.cell[:][1]/n_frac[1])
             c_mesh += 0.5 * (self.atoms.cell[:][2]/n_frac[2])
 
-        vdw_radius = {}
 
-        for atom in self.atoms:
-            if atom.number not in vdw_radius:
-                vdw_radius.update({
-                    atom.number: element(
-                        atom.symbol).vdw_radius * vdw_scale / 100.
-                })  # [pm] / 100 = [Å];
-
-        data_points = np.empty((len(a_mesh)*len(b_mesh)*len(c_mesh), 3))
+        cart_coords = np.empty((len(a_mesh)*len(b_mesh)*len(c_mesh), 3))
         idx = 0
         for a in a_mesh:
             for b in b_mesh:
                 for c in c_mesh:
                     vec = a + b + c
-                    data_points[idx] = vec
+                    cart_coords[idx] = vec
                     idx += 1
+        
+        ########
+        ######## How do we set the new radii? Like so! NEW CODE HERE
+        ######## Here is also cutoff radii inmplemented
+        ########
+        if cutoff_radii is not None:
+            # NOTE: Excluder return within_cutfoff, outside_cutoff masks
+            cutoff_excluder = RadialExcluder(radii=cutoff_radii)
+            cutoff_excluded, cutoff_included = cutoff_excluder.construct_cutoff_filters(self.atoms, 
+                                                                                        grid_coords=cart_coords, 
+                                                                                        frac_input=False, 
+                                                                                        periodic=True)
+        else:
+            # If not set, set excluder to None and include all points in this mask:
+            cutoff_excluder = None
+            cutoff_included = np.full(cart_coords.shape[0], fill_value=True, dtype=bool)
+            
 
-        mesh_index = KDTree(data_points, metric='euclidean')
-        ind = mesh_index.query_radius(
-            self.atoms.positions,
-            [vdw_radius[atom.number] for atom in self.atoms])
+        ### Here's the vdw exclusion:
+        if vdw_scale is not None:
+            vdw_excluder = ScaledVdWExcluder(vdw_scaling_map=vdw_scale)
+            vdw_excluded, vdw_included = vdw_excluder.construct_cutoff_filters(self.atoms, 
+                                                                           grid_coords=cart_coords, 
+                                                                           frac_input=False, 
+                                                                           periodic=True)
+        else:
+            # If not set, set excluder to None and include all points in this mask:
+            vdw_excluder = None
+            vdw_included = np.full(cart_coords.shape[0], fill_value=True, dtype=bool)
 
-        ind = np.unique(np.hstack(ind))
 
-        included = np.empty(data_points.shape[0], dtype=np.bool)
+        # Combine the masks like so:
+        included = np.logical_and(cutoff_included, vdw_included)
 
-        idx1 = 0
-        for idx2, point in enumerate(data_points):
-            if len(ind) == idx1:
-                included[idx2] = True
-            elif ind[idx1] > idx2:
-                included[idx2] = True
-            elif ind[idx1] == idx2:
-                included[idx2] = False
-                idx1 += 1
-            else:
-                raise Exception('This should not have happened. ' +
-                                'Something must have gone terribly wrong! ' +
-                                'Check indexing.')
 
-        assert included.shape[0] == data_points.shape[0]
+        ##### End new block of vdw code
+
+        assert included.shape[0] == cart_coords.shape[0]
         included = included.reshape(n_frac)
-        data_points = data_points.reshape(n_frac + (data_points.shape[1],))
+        cart_coords = cart_coords.reshape(n_frac + (cart_coords.shape[1],))
 
-        self.grid_vectors = data_points
+        self.grid_vectors = cart_coords
         self.included_grid_vectors = included
 
-        return (data_points, included)
+        # Adding these filters as well too the sampler 
+        self.cutoff_included = cutoff_included.reshape(n_frac)
+        self.vdw_included = vdw_included.reshape(n_frac)
+
+        # NOTE: Adding Excluders too
+        self.radial_cutoff_excluder = cutoff_excluder
+        self.scaled_vdw_excluder = vdw_excluder
+
+        return (cart_coords, included)
+
 
     def _log_calculate_energies_before(self, grid_points, included_grid_points, exploit_symmetry):
         print('Start calculation of energy grid...')
