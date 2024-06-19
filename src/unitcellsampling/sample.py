@@ -5,10 +5,7 @@ from ase.spacegroup import get_spacegroup
 import datetime
 import time
 
-from mendeleev import element
-from sklearn.neighbors import KDTree
 from unitcellsampling import energy_calculator
-from unitcellsampling import volume_exclusion
 from unitcellsampling.volume_exclusion import RadialExcluder, ScaledVdWExcluder
 
 
@@ -23,10 +20,19 @@ def get_fractional_coords(cartesian_coords, cell_vectors) -> np.ndarray:
 class UnitCellSampler:
 
     def __init__(self, atoms: ase.Atoms):
+        # basics
         self.atoms = atoms
         self.grid_vectors = None
-        self.included_grid_vectors = None
         self.n_frac = None
+
+        # volume exclusion related
+        self.included_grid_vectors = None
+        self.cutoff_included = None
+        self.vdw_included = None
+        self.radial_cutoff_excluder = None
+        self.scaled_vdw_excluder = None
+        
+        # symmetry related
         self.spacegroup = None # / H
 
         self.gemmi_unitcell = None # IN EXPERIMENTAL TESTING STAGE!!! /H
@@ -83,12 +89,27 @@ class UnitCellSampler:
         """
         self.start = time.time()
         if grid_points is not None:
+            # if provided with external grid points
             included_grid_points = np.full(grid_points.shape[0], True)
+            
+            # These are set for proper logging
+            included_radial_cutoff = None
+            included_vdw = None
+
+            print("UnitCellSampler: External grid points given - No volume exclusion nor information about volume exclusion is accessed or applied by the sampler.")
+
         else:
+            # Otherwise: Use internal grid points
             included_grid_points = self.included_grid_vectors.flatten()
             grid_points = self.grid_vectors.reshape(
                 np.product(self.grid_vectors.shape[:-1]),
                 self.grid_vectors.shape[-1])
+            
+            # These are set for proper logging 
+            included_radial_cutoff = self.cutoff_included
+            included_vdw = self.vdw_included
+            
+            print("UnitCellSampler: Internal grid points are used - Accessing information about volume exclusion masks from sampler.")
 
         if fractional:
             raise Warning('Fractional input not tested. Check results!')
@@ -129,8 +150,11 @@ class UnitCellSampler:
         grid_points = np.array(grid_points)
 
         # Logging before main loop
-        self._log_calculate_energies_before(
-            grid_points, included_grid_points, exploit_symmetry)
+        self._log_calculate_energies_before(grid_points,
+                                            included_grid_points,
+                                            exploit_symmetry,
+                                            included_radial_cutoff,
+                                            included_vdw)
 
         n_exploited_symmetry = 0
         energies = np.empty(grid_points.shape[0], dtype=np.float64)
@@ -201,8 +225,12 @@ class UnitCellSampler:
                     energies_grid.symmetrize_max()
 
         # Logging after main loop
-        self._log_calculate_energies_after(
-            grid_points, included_grid_points, n_exploited_symmetry)
+        self._log_calculate_energies_after(grid_points,
+                                included_grid_points,
+                                n_exploited_symmetry,
+                                included_radial_cutoff=included_radial_cutoff,
+                                included_vdw=included_vdw
+                                )
 
         # Normalize
         if exploit_symmetry:
@@ -221,6 +249,7 @@ class UnitCellSampler:
         np.nan_to_num(energies, copy=False)
 
         return energies.reshape(included_grid_points.shape)
+
 
     def generate_grid_vectors(self, n_frac=(10, 10, 10), abs=None, 
                               cutoff_radii=0.0, 
@@ -245,9 +274,14 @@ class UnitCellSampler:
             cell respectively.
 
         cutoff_radii
-            Single radius or dictionary mapping of atomic symbols to radii
+            Single radius or dictionary mapping from atomic symbols to radii
             in Ångström, for use in spherical cutoffs. That is, exclusion of
-            points within a radius of the framework atoms.
+            points within a radius of the framework atoms. If a single float
+            is given, this will be applied to all atoms in the framework.
+            If a dictionary is given, it must contain keys corresponding to
+            all atom types in the framework, and/or a \"default\" entry. 
+            The default entry, if present, will be used for all atom types
+            not explicitly specified.
             
 
         vdw_scale
@@ -255,7 +289,12 @@ class UnitCellSampler:
             scaling factors, to use for scaling van der Waals radii. This
             is used for a spherical cutoff based on scaled van der Waals
             radii, e.g. exclusion of points within a radius of the framework
-            atoms.
+            atoms. If a single float is given, this will be applied as a
+            van der Waals scaling factor for all atoms in the framework.
+            If a dictionary is given, it must contain keys corresponding to
+            all atom types in the framework, and/or a \"default\" entry. 
+            The default entry, if present, will be used for all atom types
+            not explicitly specified.
 
         midvox
             Setting that specifies that grid points should be the 
@@ -318,10 +357,9 @@ class UnitCellSampler:
                     cart_coords[idx] = vec
                     idx += 1
         
-        ########
-        ######## How do we set the new radii? Like so! NEW CODE HERE
-        ######## Here is also cutoff radii inmplemented
-        ########
+        #### Start block of new vdw code
+        #### Here also new cutoff radii implemented
+        
         if cutoff_radii is not None:
             # NOTE: Excluder return within_cutfoff, outside_cutoff masks
             cutoff_excluder = RadialExcluder(radii=cutoff_radii)
@@ -352,7 +390,7 @@ class UnitCellSampler:
         included = np.logical_and(cutoff_included, vdw_included)
 
 
-        ##### End new block of vdw code
+        ##### End block of new vdw code
 
         assert included.shape[0] == cart_coords.shape[0]
         included = included.reshape(n_frac)
@@ -372,11 +410,15 @@ class UnitCellSampler:
         return (cart_coords, included)
 
 
-    def _log_calculate_energies_before(self, grid_points, included_grid_points, exploit_symmetry):
+    def _log_calculate_energies_before(self, grid_points,
+                                    included_grid_points,
+                                    exploit_symmetry,
+                                    included_radial_cutoff,
+                                    included_vdw):
         print('Start calculation of energy grid...')
         print(str(datetime.datetime.now()))
         print()
-        print('Calculating energies for the following structure (excluding the additional atom):')
+        print('Calculating energies for the following framework structure (excluding the additional atom):')
         print()
         print('Unit cell:')
         print(np.array2string(self.atoms.get_cell()[:],
@@ -388,36 +430,87 @@ class UnitCellSampler:
         for (symbol, position) in zip(chemical_symbols, scaled_positions):
             print(symbol, np.array2string(position,
                                           formatter={'float_kind': lambda x: "%.7f" % x}))
-        print()
+        print()            
+
 
         if exploit_symmetry:
             #print("Using spacegroup", get_spacegroup(self.atoms))
             print("Using spacegroup", self.spacegroup) # / H
             print()
+        
+        if self.radial_cutoff_excluder is not None and included_radial_cutoff is not None:
+            print("Radial cutoff exclusion used:")
+            self.radial_cutoff_excluder.print_settings()
+            print()
 
-        print('Gridpoint mesh to calculate', self.n_frac)
+        if self.scaled_vdw_excluder is not None and included_vdw is not None:
+            print("Scaled van der Waals exclusion used:")
+            self.scaled_vdw_excluder.print_settings()
+            print()
+
+        print("Gridpoint mesh to calculate:", self.n_frac)
+        print("Total number of grid points:", grid_points.shape[0])
+        print("Number of neglected grid points from combined spherical exclusion:",
+              np.size(included_grid_points)
+              - np.count_nonzero(included_grid_points))
+        if included_radial_cutoff is not None:
+            print("Number of neglected grid points from cutoff radii:",
+                  np.size(included_radial_cutoff) - np.count_nonzero(included_radial_cutoff))         
+        if included_vdw is not None:
+            print("Number of neglected grid points from scaled van der Waals radii:",
+                  np.size(included_vdw) - np.count_nonzero(included_vdw))
+        print()
         print("Grid points to calculate:")
-
         for grid_point in grid_points:
             print(np.array2string(get_fractional_coords(
                 grid_point, self.atoms.cell[:]),
                 formatter={'float_kind': lambda x: "%.7f" % x}))
+        
+        print()
+        print("Sampling started...")
 
-        print("Number of total grid points:", grid_points.shape[0])
-        print("Number of neglected grid points due to vdw radii:",
-              np.size(included_grid_points)
-              - np.count_nonzero(included_grid_points))
 
     def _log_calculate_energies_after(self, grid_points,
                                       included_grid_points,
-                                      n_exploited_symmetry):
+                                      n_exploited_symmetry,
+                                      included_radial_cutoff=None,
+                                      included_vdw=None):
+        print("Sampling completed.")
+
+        print("=============================================")
+        print("==          GRID SAMPLING SUMMARY          ==")
+        print("=============================================")
+        if self.n_frac:
+            print("Total grid shape:", self.n_frac)
+        print("Number of total grid points:", grid_points.shape[0])
+        actual_num_calcs = (grid_points.shape[0] - n_exploited_symmetry -
+              (np.size(included_grid_points)
+               - np.count_nonzero(included_grid_points)))
+        print("Total number of actual calculations:", actual_num_calcs)
+        print("Number of neglected grid points from combined spherical exclusion:",
+              np.size(included_grid_points)
+              - np.count_nonzero(included_grid_points))
+        
+        if included_radial_cutoff is not None:
+            print("Number of neglected grid points from cutoff radii:",
+                  np.size(included_radial_cutoff) - np.count_nonzero(included_radial_cutoff))
+            
+        if included_vdw is not None:
+            print("Number of neglected grid points from scaled van der Waals radii:",
+                  np.size(included_vdw) - np.count_nonzero(included_vdw))
+            
+
         print("Number of saved calculations due to symmetry:",
               n_exploited_symmetry)
 
-        print("Total number of actual calculations:",
-              grid_points.shape[0] - n_exploited_symmetry -
-              (np.size(included_grid_points)
-               - np.count_nonzero(included_grid_points)))
+        total_time = time.time()-self.start
 
-        print("Total calculation time was {:.7f} seconds".format(
-            time.time()-self.start))
+        print("Total calculation time was {:.7f} seconds".format(total_time))
+        print("Average time/grid point calculation: {:.7f} s".format(
+                                         total_time/actual_num_calcs))
+        print("Extrapolated est. time for full grid: {:.7f} s".format(
+                   grid_points.shape[0] * total_time/actual_num_calcs))
+        print("Estimated time saved: {:.7f} s".format(
+            (grid_points.shape[0] * total_time/actual_num_calcs) - total_time))
+        print("=============================================")
+        print()
