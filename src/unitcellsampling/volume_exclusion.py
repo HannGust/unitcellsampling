@@ -64,20 +64,29 @@ class RadialExcluder:
     
     
     def print_settings(self):
-        """Prints attributes."""
-        print("Radii: ", self.radii)
-        print("Atomtype2radius_map: ", self.atomtype2radius_map)
+        """Prints settings of the RadialExcluder object, i.e. the
+        list of radii and the atomtype2radius mapping."""
+        print("radii: ", self.radii)
+        print("atomtype2radius_map: ", self.atomtype2radius_map)
 
 
     def get_radii_list(self, atoms:ase.Atoms):
-        """Constructs and returns a list of cutoff radii."""
+        """Constructs and returns a list of cutoff radii for an atoms object."""
 
-        cutoff_radii = [self.atomtype2radius_map[atom] if atom in self.atomtype2radius_map.keys() else self.atomtype2radius_map["default"] for atom in atoms.get_chemical_symbols()]
+        cutoff_radii = [self.atomtype2radius_map[atom]
+                        if atom in self.atomtype2radius_map.keys()
+                        else self.atomtype2radius_map["default"]
+                        for atom in atoms.get_chemical_symbols()]
+        
         return cutoff_radii
     
 
     def get_full_radii_mapping(self, atoms:ase.Atoms):
-        """Simple short way of constructing full radii mapping for an atoms object."""
+        """Constructs the full atom-type to radii mapping for an atoms-object 
+        by unfolding the default value, i.e. adding missing atom-types by 
+        filling in the default value."""
+        # Simpler, shorter way of constructing full radii mapping for an atoms object.
+        # The list(dict.fromkeys()) construction only serves to remove duplicates, i.e. unique-ify
 
         full_radii_mapping = {atom:self.atomtype2radius_map[atom]
                             if (atom in self.atomtype2radius_map.keys()) 
@@ -98,7 +107,7 @@ class RadialExcluder:
         existing_atom_types = set(self.atomtype2radius_map.keys())
         existing_atom_types.discard('default')
 
-        assert 'default' in self.atomtype2radius_map or existing_atom_types.issuperset(required_atom_types), "Radii mapping missing atom-types! Add the missing atoms or a default radius!"
+        assert 'default' in self.atomtype2radius_map or existing_atom_types.issuperset(required_atom_types), "Radii mapping missing atom-types! Add the missing atom-types or a default radius."
 
         # Init byt copying existing mapping:
         full_radii_mapping = self.atomtype2radius_map.copy()
@@ -127,7 +136,7 @@ class RadialExcluder:
         existing_atom_types = set(self.atomtype2radius_map.keys())
         existing_atom_types.discard('default')
 
-        assert 'default' in self.atomtype2radius_map or existing_atom_types.issuperset(required_atom_types), "Radii mapping missing atom-types! Add the missing atoms or a default radius!"
+        assert 'default' in self.atomtype2radius_map or existing_atom_types.issuperset(required_atom_types), "Radii mapping missing atom-types! Add the missing atom-types or a default radius."
 
         # Initialize new dictionary mapping
         full_radii_mapping = dict()
@@ -287,12 +296,14 @@ class ScaledVdWExcluder:
         
         # Sanity check:
         for key,val in self.vdw_scaling_map.items():
-                assert isinstance(val, float) and val >= 0.0, "vdw_scaling_map must rern non-negative float."
+                assert isinstance(val, float) and val >= 0.0, "vdw_scaling_map must return non-negative floats! This should not have happened!"
+        
+        self.radial_excluder = None
     
 
     def generate_excluder(self, atoms:ase.Atoms):
         """Generates a vdW-excluder for an atoms object from
-        the settings (vdW scaling factors). Returns a RadialExlcuderObject
+        the settings (vdW scaling factors). Returns a RadialExcluder-object
         with the desired settings."""
         # Note, dividing with 100 to get to Ångström from picometer
         #radii = must be dict of atom-types to radii in Ångström
@@ -328,11 +339,12 @@ class ScaledVdWExcluder:
     
 
     def print_settings(self):
+        """Prints settings of the ScaledVdWExcluder object, i.e. the 
+        vdW sclaing map, as well as the settings of the derived RadialExcluder,
+        if it has been generated."""
         print("vdw_scaling_map: ", self.vdw_scaling_map)
-        print()
         if self.radial_excluder is not None:
-            print("Radial excluder info\n---------------------")
             self.radial_excluder.print_settings()
         else:
-            print("radial_excluder: None - Not generated yet.")
+            print("radial_excluder: None - not generated yet.")
    
