@@ -641,8 +641,8 @@ print()
 print("Additional information from grid preprocessing:")
 print("Grid shape: ", unitcell_ucs.included_grid_vectors.shape)
 print("Total number of grid points: ", np.size(unitcell_ucs.included_grid_vectors))
-print("Grid points excluded in radial cutoff: ",np.count_nonzero(np.logical_not(unitcell_ucs.cutoff_included)))
-print("Grid points excluded in vdW cutoff: ", np.count_nonzero(np.logical_not(unitcell_ucs.vdw_included)))
+print("Grid points excluded by radial cutoff: ",np.count_nonzero(np.logical_not(unitcell_ucs.cutoff_included)))
+print("Grid points excluded by vdW cutoff: ", np.count_nonzero(np.logical_not(unitcell_ucs.vdw_included)))
 print()
 
 ##
