@@ -28,8 +28,8 @@ from pymatgen.io.ase import AseAtomsAdaptor
 # TODO Use the new grid shape compatibility functions to write a new one that returns the closest grid shape??
 
 def is_shape_compatible(shape, gemmigrid):
-    """ Tests whether the grid shape and spacegroup are compatible according
-        to gemmi's grid.set_size() function.
+    """Tests whether the grid shape and gemmi grid (with associated spacegroup)
+    are compatible according to gemmi's grid.set_size() function.
     """
     try:
        gemmigrid.set_size(*shape)
@@ -42,43 +42,50 @@ def is_shape_compatible(shape, gemmigrid):
     else:
        return True
 
-# TODO: FIX so that it either takes a gemmi spacegroup or at least makes a dummy grid
-def search_compatible_grid_sizes(gemmigrid, start_shape, search_extent=10, mode="up"):
+
+# NOTE: Has been updated. Now takes spacegroup an makes dummy grid.
+# Also changed "sizes" in function and variable names to "shapes".
+def search_compatible_grid_shapes(gemmi_spgrp, start_shape, search_extent=10, mode="up"):
     """Searches for compatible grid sizes in a range."""
-    assert isinstance(gemmigrid.spacegroup, gemmi.SpaceGroup), "Error: gemmigrid must have a spacegroup!"
+    assert isinstance(gemmi_spgrp, gemmi.SpaceGroup), "Error: gemmi_spgrp must be a gemmi.SpaceGroup!"
     assert isinstance(start_shape, (tuple, list)) and len(start_shape) == 3, "Error: Start shape must be tuple/list of lenght 3!"
     assert all([isinstance(i, int) for i in start_shape]), "Error: Start shape must be tuple/list of integers!"
 
-    gen_of_sizes = it.product(range(start_shape[0], start_shape[0] + search_extent),
+    gen_of_shapes = it.product(range(start_shape[0], start_shape[0] + search_extent),
                                range(start_shape[1], start_shape[1] + search_extent),
                                range(start_shape[2], start_shape[2] + search_extent)
                                )
 
-    list_of_sizes = list(map(list, gen_of_sizes))
+    list_of_shapes = list(map(list, gen_of_shapes))
 
-    compatible_sizes = []
-    incompat_sizes = []
+    # Make a dummy grid instance, and set its spacegroup
+    gemmigrid = gemmi.Int8Grid()
+    #gemmigrid = gemmi.FloatGrid() # It should not matter at all which grid-type
+    gemmigrid.spacegroup = gemmi_spgrp
 
-    for sz in list_of_sizes:
-        if is_shape_compatible(sz, gemmigrid):
-            compatible_sizes.append(sz)
+    compatible_shapes = []
+    incompat_shapes = []
+
+    for shp in list_of_shapes:
+        if is_shape_compatible(shp, gemmigrid):
+            compatible_shapes.append(shp)
         else:
-            incompat_sizes.append(sz)
+            incompat_shapes.append(shp)
 
-    return compatible_sizes, incompat_sizes
+    return compatible_shapes, incompat_shapes
 
 
-# TODO: Finish this and test it!!!
+# TODO: DONE, but test it!
 def find_grid_shape_closest_to_spacing(grid_shapes, ref_spacing, a, b, c):
     """Finds the grid shape(s) in a list that is closest 
     to a certain reference spacing.
     grid_shapes : list of lists of grid shapes
     a,b,c : cell parameters of the unitcell.
     
-    OBS NOT DONE YET"""
+    OBS: DONE but should be tested."""
 
-    assert isinstance(ref_spacing, (tuple, list)) and len(ref_spacing) == 3, "Error: "
-    assert len(np.array(grid_shapes).shape) == 2 and np.array(grid_shapes).shape[1] == 3, "Error: "
+    assert isinstance(ref_spacing, (tuple, list)) and len(ref_spacing) == 3, "Error: ref_spacing must be tuple or list of length 3."
+    assert len(np.array(grid_shapes).shape) == 2 and np.array(grid_shapes).shape[1] == 3, "Error: grid_shapes needs to be of shape (n, 3)."
 
     grid_spacings = [(a/s[0], b/s[1], c/s[2]) for s in grid_shapes]
 
@@ -91,11 +98,71 @@ def find_grid_shape_closest_to_spacing(grid_shapes, ref_spacing, a, b, c):
     return closest_shape
 
 
+# TODO: 1. Finish implementation. 2. Test it! 3. Check usage in cli scripts.
+def find_spacegroup_compatible_gridshape(grid_shape:tuple, gemmi_spacegroup:gemmi.SpaceGroup,
+                                         a:float, b:float, c:float, ref_spacing=None, search_extent=10, mode="up"):
+    """Finds a grid shape compatible with a given spacegroup setting. 
+    Based on a given, initial grid shape, and a spacegroup entry, find a grid shape
+    that is compatible with the spacegroup symmetry, and has a spacing closest to
+    a given reference spacing (by default hat of the initial grid shape)."""
+
+    # Start of strong with NotImplemented check
+    if not mode == "up":
+        raise NotImplementedError("ERROR: mode = {} is not implemented yet. Only available option is \"up\".")
+    
+    # Type checks
+    assert isinstance(grid_shape, tuple) and len(grid_shape) == 3 and all([isinstance(x, int) for x in grid_shape]), "ERROR: grid_shape must be len=3 tuple of integers!"
+    assert isinstance(gemmi_spacegroup, gemmi.SpaceGroup), "ERROR: gemmi_spacegroup must be gemmi.SpaceGroup object!"
+    assert ref_spacing is None or (isinstance(ref_spacing, (tuple, list)) and len(ref_spacing) == 3 and all([isinstance(s, (float, int)) for s in ref_spacing])), "ERROR: ref_spacing must be len=3 tuple or list of floats!"
+
+    # Now search for list of compatible shapes
+    compatible_shapes, incompat_shapes = search_compatible_grid_shapes(gemmi_spgrp=gemmi_spacegroup,
+                                                                       start_shape=grid_shape,
+                                                                       search_extent=search_extent,
+                                                                       mode=mode)
+    
+    ### TODO: Could implement this. Not neccessary
+    # Extend and iterate search if nothing is found:
+    #max_while_iter = 5
+    #while_iter = 0
+    #bool_stop = False
+    #start_shape = grid_shape
+    #while compatible_shapes == [] and not bool_stop:
+    #    new_start_shape = (i + search_extent for i in start_shape,)
+    #    start_shape = new_start_shape
+
+    #    compatible_shapes, incompat_shapes = search_compatible_grid_shapes(gemmi_spgrp=gemmi_spacegroup,
+    #                                                                   start_shape=start_shape,
+    #                                                                   search_extent=search_extent,
+    #                                                                   mode=mode)
+    #    while_iter += 1
+    #    if while_iter == max_while_iter:
+    #        bool_stop = True
+    ###
+
+    if compatible_shapes == []:
+        raise RuntimeError("ERROR: Search for compatible grid shape failed; no shape found.") # max iterations exceeded: while_iter = {}, max_while_iter = {}".format([while_iter, max_while_iter]))
+
+
+    # Now, make selection of best shape based on reference spacing
+    if ref_spacing is None:
+        # Default is spacing corresponding to input grid shape
+        ref_spacing = [a/grid_shape[0], b/grid_shape[1], c/grid_shape[2]]
+    
+    closest_compatile_shape = find_grid_shape_closest_to_spacing(compatible_shapes,
+                                                                 ref_spacing=ref_spacing,
+                                                                 a=a, b=b, c=c)
+    
+    return closest_compatile_shape
+
+
+
 #TODO: Deprecate this?
 def is_shape_and_spacegroup_compatible(shape, spacegroup):
     """ Tests whether the grid shape and spacegroup are compatible according
         to gemmi's grid.set_size() function.
     """
+    raise DeprecationWarning("This function has been deprecated. Please use is_shape_compatible instead!")
     test_grid = gemmi.FloatGrid()
     test_grid.spacegroup = spacegroup
 
@@ -105,9 +172,10 @@ def is_shape_and_spacegroup_compatible(shape, spacegroup):
        return False
     else:
        return True 
-        
+
+
 # TODO: deprecate this _old_
-def find_spacegroup_compatible_gridshape(grid_shape, spacegroup,
+def _old_find_spacegroup_compatible_gridshape(grid_shape, spacegroup,
                                     search_denser=True):
     """ Starting from a given grid shape, searches for the closest grid
         shape compatible with the given spacegroup. THIS IS THE OLD VERISON.
@@ -870,8 +938,283 @@ def clean_symops_translations(symops:list):
 # Want function that takes atoms and returns atoms, and gemmi.SpaceGroup
 # What the spacegroup finding functions should do is to standardize
 # This should return a structure (either cell tuple or atoms) and a spacegroup that matches
+
+# This is the simple/direct function
 # TODO: Test this in sampling.
-def prepare_matching_structure_and_spacegroup(atoms:ase.Atoms, clean=True, wrap=False, to_primitive=False, no_idealize=True, allow_change_basis=True):
+def match_cell_tuple_with_gemmi_spacegroup(cell_tuple, clean=True, wrap=False):
+    """From an atoms object, attempt to find the matching spacegroup
+    in gemmi, and return a gemmi.SpaceGroup object that are in accord with the atoms object
+    as well as the symmetry dataset of this structure from spglib.
+    The clean and wrap arguments are directly passed to the spacegroup matching function
+    find_matching_gemmi_spacegroup_from_spglib_dataset that is used to find the corresponding 
+    spacegroup in gemmi. Also returns the symmetry dataset from spglib.
+    
+    Default settings involves comparisons of the spacegroup operations after \"cleaning\" (clean=True)
+    of the spglib operations, which means wrapping and reducing numbers very close to
+    0.0 or 1.0 to 0.0 in the translational parts of the symmetry operations.
+    """
+    
+    sym_dataset = spglib.get_symmetry_dataset(cell_tuple)
+
+    # Here, try matching.
+    try:
+        matching_gemmi_spgrps = find_matching_gemmi_spacegroup_from_spglib_dataset(sym_dataset, match_type="full", clean=clean, wrap=wrap)
+    except Exception as exc:
+        raise Exception("Spacegroup matching failed!") from exc
+
+    # Now we perform checks: Check that there is one and only one unique match - or if several, it is number 68, since it has multiple entries.
+    if not len(matching_gemmi_spgrps) <= 1:
+        # We only allow this ambiguity for spacegroup number 68, since it has duplicate entries 
+        # in the gemmi table. Hence it is not ambiguous. Moreover, we sanity check for operation equality.
+        for grp in matching_gemmi_spgrps:
+            assert grp.number == 68, "ERROR: Ambiguous spacegroup matching for spacegroup other than 68. Found {} matching spacegroups. This should not have happened!".format(len(matching_gemmi_spgrps))
+            assert matching_gemmi_spgrps[0].operations() == grp.operations(), "ERROR: Spacegroup matches (>1) have differing operations! This should not have happened."
+
+    else:
+        assert len(matching_gemmi_spgrps) == 1, "ERROR: Spacegroup matching failed! Found {} matching spacegroups.".format(len(matching_gemmi_spgrps))
+    
+    gemmi_spgrp = matching_gemmi_spgrps[0]
+    
+    return gemmi_spgrp, sym_dataset
+
+
+# Not sure if needed
+def match_atoms_with_gemmi_spacegroup(atoms:ase.Atoms, clean=True, wrap=False):
+    cell_tuple = atoms_to_spglib_cell_tuple(atoms)
+
+    gemmi_spgrp, sym_dataset = match_cell_tuple_with_gemmi_spacegroup(cell_tuple, clean=clean, wrap=wrap)
+
+    # With these checks above, we are done, and can convert back to atoms object.
+    matching_atoms = spglib_cell_tuple_to_atoms(cell_tuple)
+
+    # This is a paranoia sanity check
+    assert is_close_atoms(matching_atoms, atoms), "ERROR: Atoms from cell tuple somehow not close to input atoms. This should not have happened!"
+
+    return cell_tuple, gemmi_spgrp, sym_dataset
+    
+
+# Standardization function - unclear if useful or not.
+# TODO: Figure out if remove or use
+def spglib_standardize_structure(atoms:ase.Atoms, to_primitive=False, no_idealize=True, change_basis=False):
+    """Converts an atoms object into a spglib tuple and standardizes it using
+    the spglib.standardize_cell function, according to the input settings.
+    Arguments to_primitive and no_idealize are directly passed to this function.
+    The change_basis flag controls whether an additional basis change should be 
+    performed after the standardization with the spglib.standardize_cell function
+    has been applied. The change of basis that can be applied is based on the 
+    transformation matrix and origin shift of the spglib symmetry dataset of 
+    the obtained cell tuple from the standardization. If the change of basis is
+    preformad, the symmetry dataset is again determined for the resulting cell 
+    tuple.
+
+    Returns the final, standardized cell tuple, its symmetry dataset, a tuple of
+    the transformation matrix P_mat and origin shift p_shift, and lastly a tuple of
+    the symmetry datasets from spglib of the input stucture and from the
+    structure obtained in the standardization before a potential change of basis.
+    """
+    cell_tuple = atoms_to_spglib_cell_tuple(atoms)
+    orig_symmetry_dataset = spglib.get_symmetry_dataset(cell_tuple)
+
+    tmp_std_cell_tuple = spglib.standardize_cell(cell_tuple, to_primitive=to_primitive, no_idealize=no_idealize)
+    tmp_std_symmetry_dataset = spglib.get_symmetry_dataset(tmp_std_cell_tuple)
+
+    P_mat = tmp_std_symmetry_dataset["transformation_matrix"]
+    p_shift = tmp_std_symmetry_dataset["origin_shift"]
+
+
+    if change_basis:
+        std_cell_tuple = change_basis_cell_tuple(tmp_std_cell_tuple, P_mat, p_shift)
+    else:
+        std_cell_tuple = tmp_std_cell_tuple
+    
+    std_symmetry_dataset = spglib.get_symmetry_dataset(std_cell_tuple)
+
+    
+    return std_cell_tuple, std_symmetry_dataset, (P_mat, p_shift), (orig_symmetry_dataset, tmp_std_symmetry_dataset, std_symmetry_dataset)
+
+
+def prepare_matching_structure_and_spacegroup(atoms:ase.Atoms, clean=True, wrap=False, to_primitive=False, no_idealize=True, spglib_standardize="allow", change_basis="allow", debug_output=False):
+    """From an atoms object, attempt to find a matching spacegroup in the table in gemmi,
+    and return a pair of a matching atoms object and a gemmi.SpaceGroup object that are
+    in accord.
+    Settings allow some amount of structural processing to be performed, either prior to
+    attempting the spacegorup matching, or as needed, through spglib.
+
+    The clean and wrap arguments are directly passed to the spacegroup matching function
+    find_matching_gemmi_spacegroup_from_spglib_dataset that is used to find the corresponding 
+    spacegroup in gemmi.
+
+    The spglib_standardize argument take on one of the values "off", "on" or "allow", which
+    specifies whether standardization through spglib should be done prior to matching ("on"),
+    as needed if no spacegroup matches are found at first ("allow"), or be completely turned off.
+    The change_basis argument similarily controls whether, after said standardization in spglib,
+    a basis change should be applied to the structure. "on" specifies this as part of the preprocessing
+    step, while "allow" enables it only if needed (e.g. no spacegroup mathces at first attempt), and 
+    "off" disables it completely.
+
+    The symmetry search and standardization are done with spglib. to_primitive and no_idealize
+    are passed to the standardize_cell function, and controls how standardization is done if enabled.
+    
+    Default settings are spglib_standardize = "allow" and change_basis = "allow", i.e. an attempt is
+    to match the structure as is, but if neccessary, a standardization is done with spglib, and if no
+    match is found after this, a final matching is attempted after a change of basis.
+    
+    The default spglib standardizaton settings are standardization to the conventional unitcell 
+    without idealization through spglibs standardize_cell-function with to_primitive=False 
+    and no_idealize=True), as well as comparisons of the spacegroup operations after \"cleaning\"
+    (clean=True) of the spglib operations, which means wrapping and reducing numbers very close
+    to 0.0 or 1.0 to 0.0 in the translational parts of the symmetry operations.
+    
+    The change of basis that is applied is contained in the spglib dataset for the standardized structure, 
+    e.g. the transformation matrix and the origin shift. This does not change the structure, 
+    but merely alters the coordinate system and basis, and thus may alter the representation of 
+    the symmetry operations."""
+    
+    # Input logic
+    assert spglib_standardize in ["off", "allow", "on"], "ERROR: spglib_standardize argument was {}. It must be off, allow, or on.".format(spglib_standardize)
+    assert change_basis in ["off", "allow", "on"], "ERROR: change_basis argument was {}. It must be off, allow, or on.".format(change_basis)
+
+    if spglib_standardize == "allow":
+        assert change_basis in ["off", "allow"], "ERROR: change_basis must be off or allow when spglib_standardize = {}".format(spglib_standardize)
+    
+    if spglib_standardize == "off":
+        assert change_basis == "off", "ERROR: change_basis must be off when spglib_standardize = {}".format(spglib_standardize)
+    # End input logic
+
+    # Print settings, in case:
+    print("spglib_standardize = ", spglib_standardize, "  and  ", "change_basis = ", change_basis)
+    print("spglib standardization settings: \n", "to_primitive: ", to_primitive, "\nno_idealize: ", no_idealize)
+    #
+
+    # Here, set the initial settings for the structure:
+    # These should always be found. Mostly in case of debugging,
+    init_cell_tuple = atoms_to_spglib_cell_tuple(atoms)
+    init_sym_dataset = spglib.get_symmetry_dataset(init_cell_tuple)
+
+    std_cell_tuple = spglib.standardize_cell(init_cell_tuple, to_primitive=to_primitive, no_idealize=no_idealize)
+    std_sym_dataset = spglib.get_symmetry_dataset(std_cell_tuple)
+
+    P_mat, p_shift = std_sym_dataset["transformation_matrix"], std_sym_dataset["origin_shift"]
+    cb_cell_tuple = change_basis_cell_tuple(std_cell_tuple,P=P_mat, p=p_shift, clean=clean, wrap=wrap)
+    cb_sym_dataset = spglib.get_symmetry_dataset(cb_cell_tuple)
+    #
+
+    ### Initialization - setting of initial attempt structure ###
+    if spglib_standardize == "on":
+        print("Preprocessing structure by standardizing with spglib according to settings.")
+        if change_basis == "on":
+            print("Applying change of basis in structure preprocessing.")
+            print("Change of basis info:")
+            print("P_mat = ", P_mat)
+            print("p_shift = ", p_shift)
+
+            # Set the tuple and dataset to the change-of-basis ones.
+            match_cell_tuple = cb_cell_tuple
+            match_sym_dataset = cb_sym_dataset
+
+        elif change_basis in ["off", "allow"]:
+            print("No change of basis applied in structure preprocessing.")
+            match_cell_tuple = std_cell_tuple
+            match_cell_tuple = std_sym_dataset
+        else:
+            raise ValueError("Unsupported setting change_basis = {}".format(change_basis))
+    
+    elif spglib_standardize in ["off", "allow"]:
+        print("No preprocessing of the structure is done. Matching as is.")
+        match_cell_tuple = init_cell_tuple
+        match_sym_dataset = init_sym_dataset
+    else:
+        raise ValueError("Unsupported setting spglib_standardize = {}".format(spglib_standardize))
+    ### END OF INITIALIZATION ###
+
+    # Attempt to match:
+    try:
+        matching_gemmi_spgrps = find_matching_gemmi_spacegroup_from_spglib_dataset(match_sym_dataset, match_type="full", clean=clean, wrap=wrap)
+    except Exception as exc:
+        raise Exception("Spacegroup matching failed!") from exc
+    
+
+    ### Now, if we do not find a match, try again if settings allow it!
+    # First: Standardize if permitted and not already done.
+    if matching_gemmi_spgrps == [] and spglib_standardize == "allow":
+        print("No matching spacegroups found, and spglib_standardize = allow. Standardizing, and attempting to match again...")
+        
+        match_cell_tuple = std_cell_tuple
+        match_sym_dataset = std_sym_dataset
+
+        # Attempt to match:
+        try:
+            matching_gemmi_spgrps = find_matching_gemmi_spacegroup_from_spglib_dataset(match_sym_dataset, match_type="full", clean=clean, wrap=wrap)
+        except Exception as exc:
+            raise Exception("Spacegroup matching failed!") from exc
+
+    # Second: Change basis if permitted and not already done.
+    if matching_gemmi_spgrps == [] and change_basis == "allow":
+        print("No matching spacegroups found, and change_basis = allow. Changing basis, and attempting to match again...")
+        print("Change of basis info:")
+        print("P_mat = ", P_mat)
+        print("p_shift = ", p_shift)
+
+        match_cell_tuple = cb_cell_tuple
+        match_sym_dataset = cb_sym_dataset
+
+        # Attempt to match:
+        try:
+            matching_gemmi_spgrps = find_matching_gemmi_spacegroup_from_spglib_dataset(match_sym_dataset, match_type="full", clean=clean, wrap=wrap)
+        except Exception as exc:
+            raise Exception("Spacegroup matching failed!") from exc
+    
+    
+    ### Finally: Do final checks and controls of the spacegroup match results
+    #            and finalize the structure-spacegroup match results.
+
+    # Check that there is one and only one unique match - or if several, it is spacegroup number 68, since it has multiple entries.
+    if not len(matching_gemmi_spgrps) <= 1:
+        # We only allow this ambiguity for spacegroup number 68, since it has duplicate entries 
+        # in the gemmi table. Hence it is not ambiguous. Moreover, we sanity check for operation equality.
+        for grp in matching_gemmi_spgrps:
+            assert grp.number == 68, "ERROR: Ambiguous spacegroup matching for spacegroup other than 68. Found {} matching spacegroups. This should not have happened!".format(len(matching_gemmi_spgrps))
+            assert matching_gemmi_spgrps[0].operations() == grp.operations(), "ERROR: Spacegroup matches (>1) have differing operations! This should not have happened."
+
+        #raise Warning("ERROR: Ambiguous spacegroup matching. Found {} matching spacegroups. This should not have happened!".format(len(matching_gemmi_spgrps)))
+    else:
+        assert len(matching_gemmi_spgrps) == 1, "ERROR: Spacegroup matching failed! Found {} matching spacegroups.".format(len(matching_gemmi_spgrps))
+    
+    ### End of spacegroup match results checks
+
+    # With these checks above, we are done, and can convert back to atoms object.
+    match_gemmi_spgrp = matching_gemmi_spgrps[0]
+    match_atoms = spglib_cell_tuple_to_atoms(match_cell_tuple)
+
+    # What do I want to check here in the end?
+    # Currently, I do the conversion atoms -> spglib tuple -> atoms
+    # If I do not make any processing to the atoms object, I would like to return a copy of of the original.
+    # Options: If I check to see that no operations has been done, I could check
+    # that tuples are the same, and atoms are the same (or close)
+
+    if match_cell_tuple == init_cell_tuple:
+        # Sanity check
+        assert is_close_atoms(atoms, match_atoms), "ERROR: No processing of structure, but input atoms and match atoms differ!"
+        # This need not be true, numerical differences can cause this to be false
+        print("CHECK: Are atoms == match_atoms?: ", atoms == match_atoms)
+    
+    if is_close_atoms(atoms, match_atoms):
+        # Retain the original atoms in this case
+        print("Input atoms and match atoms are close. Retaining original atoms.")
+        match_atoms = atoms.copy()
+    
+    if not debug_output:
+        return match_atoms, match_gemmi_spgrp, (P_mat, p_shift)
+    else:
+        return match_atoms, match_gemmi_spgrp, (P_mat, p_shift), (init_sym_dataset, std_sym_dataset, cb_sym_dataset)
+    
+
+
+
+# This is the more intricate/advanced workflow function - This is an attempt at a first version.
+# Shuold probably scrap this version, since I have another more easily readable version.
+# TODO: Scrap this?
+def _dev_new_prepare_matching_structure_and_spacegroup(atoms:ase.Atoms, clean=True, wrap=False, to_primitive=False, no_idealize=True, spglib_standardize="allow", change_basis="allow"):
     """From an atoms object, standardize the structure as needed to find the matching spacegroup
     in gemmi, and return a pair of a standardized atoms object and a gemmi.SpaceGroup object
     that are in accord.
@@ -881,40 +1224,131 @@ def prepare_matching_structure_and_spacegroup(atoms:ase.Atoms, clean=True, wrap=
     The symmetry search and standardization are done with spglib. to_primitive and no_idealize
     are passed to the standardize_cell function, and controls how standardization is done.
     If no matching spacegroup is found in gemmi, an attempt to change the basis of the structure
-    is done based on the transformation matrix and origin shift informaiton in the spglib symmetry dataset.
-    This is allowed by default but can be disabled by setting allow_change_basis=False.
+    is done based on the transformation matrix and origin shift information in the spglib symmetry dataset.
+    This is allowed by default but can be disabled by setting change_basis="off".
     
     Default settings involves a standardization to the conventional unitcell without idealization through spglibs
     standardize_cell-function (with to_primitive=False and no_idealize=True), as well as comparisons of
     the spacegroup operations after \"cleaning\" (clean=True) of the spglib operations, which means wrapping
     and reducing numbers very close to 0.0 or 1.0 to 0.0 in the translational parts of the symmetry operations.
-    Moreover, if a match is not found for this standardized structure, a change of basis is perfromed and the
+    Moreover, if a match is not found for this standardized structure, a change of basis is performed and the
     matching is attempted again (allow_change_basis=True).
     The change of basis that is applied is contained in the spglib dataset for this structure, 
     e.g. the transformation matrix and the origin shift. This does not change the structure, 
     but merely alters the coordinate system and basis, and thus may alter the representation of 
     the symmetry operations."""
+    raise NotImplementedError("ERROR: This function is not completely implemented and not for use. It is awaiting probable deprecation.")
+    # Input logic
+    assert spglib_standardize in ["off", "allow", "on"], "ERROR: spglib_standardize argument was {}. It must be off, allow, or on.".format(spglib_standardize)
+    assert change_basis in ["off", "allow", "on"], "ERROR: change_basis argument was {}. It must be off, allow, or on.".format(change_basis)
+
+    if spglib_standardize == "allow":
+        assert change_basis in ["off", "allow"], "ERROR: change_basis must be off or allow when spglib_standardize = {}".format(spglib_standardize)
     
-    cell_tuple = atoms_to_spglib_cell_tuple(atoms)
-    init_sym_dataset = spglib.get_symmetry_dataset(cell_tuple)
+    if spglib_standardize == "off":
+        assert change_basis == "off", "ERROR: change_basis must be off when spglib_standardize = {}".format(spglib_standardize)
+    # End input logic
 
-    std_cell_tuple = spglib.standardize_cell(cell_tuple, to_primitive=to_primitive, no_idealize=no_idealize)
-    std_sym_dataset =  spglib.get_symmetry_dataset(std_cell_tuple)
-    orig_std_sym_dataset = copy.deepcopy(std_sym_dataset)
+    # Print settings, in case:
+    print("spglib_standardize = ", spglib_standardize, "  and  ", "change_basis = ", change_basis)
+    print("spglib standardization settings: \n", "to_primitive: ", to_primitive, "\nno_idealize: ", no_idealize)
+    #
 
-    P_mat = std_sym_dataset["transformation_matrix"]
-    p_shift = std_sym_dataset["origin_shift"]
+    # Here, set the initial settings for the structure:
+    # These should always be found. Mostly in case of debugging,
+    init_cell_tuple = atoms_to_spglib_cell_tuple(atoms)
+    init_sym_dataset = spglib.get_symmetry_dataset(init_cell_tuple)
+
+    std_cell_tuple = spglib.standardize_cell(init_cell_tuple, to_primitive=to_primitive, no_idealize=no_idealize)
+    std_sym_dataset = spglib.get_symmetry_dataset(std_cell_tuple)
+
+    P_mat, p_shift = std_sym_dataset["transformation_matrix"], std_sym_dataset["origin_shift"]
+    cb_cell_tuple = change_basis_cell_tuple(std_cell_tuple,P=P_mat, p=p_shift, clean=clean, wrap=wrap)
+    cb_sym_dataset = spglib.get_symmetry_dataset(cb_cell_tuple)
+    #
+
+    if spglib_standardize == "off":
+        # With standardization completely off, this should be practically identical to match_atoms_with_gemmi_spacegroup
+        print("No standardization or change of basis performed. Matching structure as is.")
+        match_atoms = atoms.copy()
+        match_cell_tuple, match_gemmi_spgrp, match_sym_dataset = match_atoms_with_gemmi_spacegroup(match_atoms, clean=clean, wrap=wrap)
+
+        return match_atoms, match_gemmi_spgrp, (None, None), (init_sym_dataset, None, match_sym_dataset)
 
 
-    # Here, try matching.
+    # If spglib_standardize is on, we standardize first. Otherwise, we prepare initial structure as is.
+    # In both these case, we prepare match_sym_dataset, and either match_cell_tuple or match_atoms.
+    # We should also keep track and pass forward the basis change, if applicable.
+    if spglib_standardize == "on":
+        bool_change_basis = (change_basis == "on")
+        print("Standardizing structure through spglib before matching spacegroup.")
+        if bool_change_basis:
+            print("Applying change of basis during initial standardization.")
+        else:
+            print("No change of basis applied in initial standardization.")
+
+        match_cell_tuple, match_sym_dataset, basis_change_transform, sym_datasets_tuple = spglib_standardize_structure(atoms,
+                                                                                                                       to_primitive=to_primitive,
+                                                                                                                       no_idealize=no_idealize,
+                                                                                                                       change_basis=bool_change_basis
+                                                                                                                       )
+        
+    elif spglib_standardize == "allow":
+        ####################################
+        ### Set init tuples and datasets ###
+        ####################################
+        # Init tuple and dataset, from input
+        init_cell_tuple = atoms_to_spglib_cell_tuple(atoms)
+        init_sym_dataset = spglib.get_symmetry_dataset(init_cell_tuple)
+
+        match_cell_tuple = init_cell_tuple
+        match_sym_dataset = init_sym_dataset
+    else:
+        raise RuntimeError("ERROR: Logic Error. This should not have happened.")
+
+
+    # TODO: CONTINUE WORKFLOW HERE: NOW WE ATTEMPT MATCHING HERE...
+
+    #####################################
+    # Standardized tuple and dataset, according to settings
+    #std_cell_tuple = spglib.standardize_cell(cell_tuple, to_primitive=to_primitive, no_idealize=no_idealize)
+    #std_sym_dataset =  spglib.get_symmetry_dataset(std_cell_tuple)
+    #orig_std_sym_dataset = copy.deepcopy(std_sym_dataset)
+
+    #P_mat = std_sym_dataset["transformation_matrix"]
+    #p_shift = std_sym_dataset["origin_shift"]
+    ####################################
+    
+
+    # Here, try matching with standardized structure if allowed and needed
+    # We have the name match_X for object type X of the structure we want to match
+    #match_atoms = ??
+    #match_cell_tuple = should be set
+    #match_sym_dataset = should be set
+
     try:
-        matching_gemmi_spgrps = find_matching_gemmi_spacegroup_from_spglib_dataset(std_sym_dataset, match_type="full", clean=clean, wrap=wrap)
+        matching_gemmi_spgrps = find_matching_gemmi_spacegroup_from_spglib_dataset(match_sym_dataset, match_type="full", clean=clean, wrap=wrap)
     except Exception as exc:
         raise Exception("Spacegroup matching failed!") from exc
 
 
+    # Now we check the results - and depending on settings, try again with appropriate action.
+    if spglib_standardize == "allow" and matching_gemmi_spgrps == []:
+        print("No matching spacegroups found, and spglib_standardize = allow. Standardizing structure according to spglib, and attempting to match again...")
+        match_cell_tuple, match_sym_dataset, basis_change_transform, sym_datasets_tuple = spglib_standardize_structure(spglib_cell_tuple_to_atoms(match_cell_tuple),
+                                                                                                                       to_primitive=to_primitive,
+                                                                                                                       no_idealize=no_idealize,
+                                                                                                                       change_basis=False
+                                                                                                                       )
+        try:
+            matching_gemmi_spgrps = find_matching_gemmi_spacegroup_from_spglib_dataset(match_sym_dataset, match_type="full", clean=clean, wrap=wrap)
+        except Exception as exc:
+            raise Exception("Spacegroup matching failed!") from exc
+        
+
     # Here: If no matches are found, then we attempt change of basis if allowed
-    if allow_change_basis and matching_gemmi_spgrps == []:
+    if change_basis == "allow" and matching_gemmi_spgrps == []:
+        print("No matching spacegroups found, and change_basis = allow. Performing change of basis, and attempting to match again...")
         # Attempt basis change
         cb_cell_tuple = change_basis_cell_tuple(std_cell_tuple, P_mat, p_shift)
         cb_sym_dataset = spglib.get_symmetry_dataset(cb_cell_tuple)
@@ -927,7 +1361,9 @@ def prepare_matching_structure_and_spacegroup(atoms:ase.Atoms, clean=True, wrap=
         # Then overwrite the std_cell and dataset
         std_cell_tuple = cb_cell_tuple
         std_sym_dataset = cb_sym_dataset
-    
+
+
+
     # Now we perform checks: Check that there is one and only one unique match - or if several, it is number 68, since it has multiple entries.
     if not len(matching_gemmi_spgrps) <= 1:
         # We only allow this ambiguity for spacegroup number 68, since it has duplicate entries 
@@ -946,5 +1382,5 @@ def prepare_matching_structure_and_spacegroup(atoms:ase.Atoms, clean=True, wrap=
     # With these checks above, we are done, and can convert back to atoms object.
     std_atoms = spglib_cell_tuple_to_atoms(std_cell_tuple)
 
-    return std_atoms, gemmi_spgrp
+    return std_atoms, gemmi_spgrp, (P_mat, p_shift), (init_sym_dataset, orig_std_sym_dataset, std_sym_dataset)
 
