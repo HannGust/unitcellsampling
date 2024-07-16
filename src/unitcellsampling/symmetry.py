@@ -321,6 +321,10 @@ def is_close_atoms(atoms1:ase.Atoms, atoms2:ase.Atoms, detailed=False):
     cell, to make small differences negligible.
     Also makes the np.isclose-check symmetric by construction, i.e.
     defines it as np.isclose(a,b) AND np.isclose(b,a)."""
+    if not len(atoms1.positions) == len(atoms2.positions):
+        return False
+    if not len(atoms1.numbers) == len(atoms2.numbers):
+        return False
     eq_positions = (np.isclose(atoms1.positions, atoms2.positions).all()
                     and np.isclose(atoms2.positions, atoms1.positions).all())
     eq_numbers = (atoms1.numbers == atoms2.numbers).all()
@@ -1120,7 +1124,7 @@ def prepare_matching_structure_and_spacegroup(atoms:ase.Atoms, clean=True, wrap=
         elif change_basis in ["off", "allow"]:
             print("No change of basis applied in structure preprocessing.")
             match_cell_tuple = std_cell_tuple
-            match_cell_tuple = std_sym_dataset
+            match_sym_dataset = std_sym_dataset
         else:
             raise ValueError("Unsupported setting change_basis = {}".format(change_basis))
     
@@ -1197,7 +1201,7 @@ def prepare_matching_structure_and_spacegroup(atoms:ase.Atoms, clean=True, wrap=
     # Options: If I check to see that no operations has been done, I could check
     # that tuples are the same, and atoms are the same (or close)
 
-    if match_cell_tuple == init_cell_tuple:
+    if (match_cell_tuple[0] == init_cell_tuple[0]).all() and (match_cell_tuple[1] == init_cell_tuple[1]).all() and (match_cell_tuple[2] == init_cell_tuple[2]).all():
         # Sanity check
         assert is_close_atoms(atoms, match_atoms), "ERROR: No processing of structure, but input atoms and match atoms differ!"
         # This need not be true, numerical differences can cause this to be false
