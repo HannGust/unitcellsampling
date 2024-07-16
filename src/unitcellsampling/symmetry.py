@@ -31,10 +31,15 @@ def is_shape_compatible(shape, gemmigrid):
     """Tests whether the grid shape and gemmi grid (with associated spacegroup)
     are compatible according to gemmi's grid.set_size() function.
     """
+    # Define the exceptions from gemmi that are indications of incompatibility
+    not_compatible_exceptions = [
+        "Grid not compatible with the space group",
+        "Grid must have the same size in symmetry-related directions"
+        ]
     try:
        gemmigrid.set_size(*shape)
     except RuntimeError as rt_exc:
-       if "Grid not compatible with the space group" in str(rt_exc):
+       if any([exc in str(rt_exc) for exc in not_compatible_exceptions]):
            return False
        else:
            print("Unexpected RuntimeError occurred:")
@@ -89,7 +94,7 @@ def find_grid_shape_closest_to_spacing(grid_shapes, ref_spacing, a, b, c):
 
     grid_spacings = [(a/s[0], b/s[1], c/s[2]) for s in grid_shapes]
 
-    grid_spacing_norms = np.linalg.norm(np.subtract(grid_spacings, np.array(ref_spacing)).reshape(1,3), axis=1)
+    grid_spacing_norms = np.linalg.norm(np.subtract(grid_spacings, np.array(ref_spacing)).reshape(-1,3), axis=1)
     best_spacing = np.min(grid_spacing_norms)
     best_indx = np.nonzero(grid_spacing_norms == best_spacing)
 
