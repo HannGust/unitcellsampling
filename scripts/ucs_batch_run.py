@@ -275,12 +275,17 @@ parser.add_argument('--cp2k_shell_reset_freq', type=int, action='store', default
 #parser.add_argument('--cp2k_cmd', '--cp2k-command', type=str, action='store', default=default_cp2k_cmd, help="Specify the CP2K-command that is used in the ASE-CP2K calculator interface to start and run the CP2K program. Default: ")
 # Minimum-image-convention cutoff argument
 parser.add_argument('--mic-cutoff', type=float, action='store', default=0.0, help="Specify the cut-off used to construct a supercell obeying the minimum image convention.")
+parser.add_argument('--ra', action='store_true', help="Specify whether to remove all atoms of the type that is used for sampling from the structure, before doing the sampling.")
+parser.add_argument('--conv', '--conventional-cell', action='store_true', help="If given, will check whether unit cell is conventional cell, and if not, determine the conventional cell based on the input structure and then sample the found conventional cell instead.")
 
 parser.add_argument('--nosym', action='store_false', help="Turns off usage of spacegroup symmetry. Default is to apply symmetry to save the number of required calculations.")
-parser.add_argument('--ra', action='store_true', help="Specify whether to remove all atoms of the type that is used for sampling from the structure, before doing the sampling.")
-parser.add_argument('--sg', type=int, default=None, action='store', help="Manually specify the spacegroup to use for symmetry. Default is None, in which case spacegroup will be automatically determined from the structure.")
-parser.add_argument('--guc', '--gemmiunitcell', action='store_true', help="If given, will pass unit cell information to gemmi. This is currently only for testing, to see if symmetry will be better handled in certain cases with primitive unitcells. TEST.")
-parser.add_argument('--conv', '--conventional-cell', action='store_true', help="If given, will check whether unit cell is conventional cell, and if not, determine the conventional cell based on the input structure and then sample the found conventional cell instead.")
+parser.add_argument('--sg', type=int, default=None, action='store', help="Manually specify the spacegroup to use for symmetry, by specifying the corresponding index in the gemmi table (as obtained from gemmi.spacegroup_table_itb()). Note that it is the python index, e.g. starting from 0. Default is None, in which case spacegroup will be automatically determined from the structure. Note that it is assumed that the structure already matches this spacegroup, as this bypasses the matching procedure.")
+#parser.add_argument('--guc', '--gemmiunitcell', action='store_true', help="If given, will pass unit cell information to gemmi. This is currently only for testing, to see if symmetry will be better handled in certain cases with primitive unitcells. TEST.")
+parser.add_argument('--sym-spglib-std', type=str, action='store', default="allow", choices=["off", "allow", "on"], help="Specifies the setting of the spglib standardization, in the processing of structure to match with spacegroup. Can be on, in which it is enforced, or off, in which case it is not applied, and allow, in which case it is applied only if initial spacegroup matching fails.")
+parser.add_argument('--sym-change-basis', type=str, action='store', default="allow", choices=["off", "allow", "on"], help="Specifies how to apply the change of basis in symmetry structure standardization, after spglib standardization. Can be on, in which it is enforced, or off, in which case it is not applied, and allow, in which case it is applied only if initial spacegroup matching without it fails. NOTE: Can only be applied after spglib standardization, and thus this setting must be at most that of sym-spglib-std, e.g. off if it is off, and off or allow if it is allow.")
+# TODO: add this
+#parser.add_argument('--sym-standardize', action='store_true', help="If given, will perform symmetry standardization of structure and grid to match the spacegroup, even if symmetry is not applied.")
+
 parser.add_argument('--midvox', action='store_true', help="Specifies that sampling should be done in the center of voxels rather than in the corners, as is default. Corresponds to shifting the coordinates of the grid points with 0.5 * (1/na, 1/nb, 1/nc), where ni is the number of grid points in direction of unit cell vector i.")
 
 
@@ -392,12 +397,26 @@ else:
 
 if use_sym:
     if args.sg:
-        spacegroup = args.sg
+        # TODO: Change so that this grabs the spacegroup entry from the gemmi-table. -> DONE BUT TEST? AND UPDATE THE CLI DOCS
+        # Grab the desired entry from the gemmi table. Note indexation! It is the pythonic index 
+        spacegroup = list(gemmi.spacegroup_table_itb())[args.sg]
+        #spacegroup = args.sg # OLD! DEPRECATE!
     else:
-        spacegroup = get_spacegroup(unitcell) 
+        # TODO: Change here so that a gemmi.SpaceGroup is obtained -> DONE, but test.
+        # TODO: Make CLI arguments to get more control over symmetry adaption here
+        #spacegroup = get_spacegroup(unitcell) # OLD! DEPRECATE
+        spgrp_matching_unitcell, spacegroup, basis_change_tuple = symmetry.prepare_matching_structure_and_spacegroup(atoms=unitcell,
+                                                                                      clean=True,
+                                                                                      wrap=False,
+                                                                                      to_primitive=False,
+                                                                                      no_idealize=True,
+                                                                                      spglib_standardize=args.sym_spglib_std,
+                                                                                      change_basis=args.sym_change_basis)
+        unitcell = spgrp_matching_unitcell
 
 ## Set the number of points in the grid in each dimension (or equivalently, the mesh size)
-# TODO: If symmetry is used, check/determine nearest shape that is compatible with spacegroup
+## and if symmetry is used, make sure grid and spacegroup are compatible
+# TODO: If symmetry is used, check/determine nearest shape that is compatible with spacegroup -> DONE, see todo below
 if not args.space:
     if len(args.grid) == 1:
         nx,ny,nz = args.grid * 3
@@ -409,9 +428,22 @@ if not args.space:
     a,b,c = np.linalg.norm(unitcell.get_cell()[0,:]),\
             np.linalg.norm(unitcell.get_cell()[1,:]),\
             np.linalg.norm(unitcell.get_cell()[2,:])
-    true_spacing = (a/nx, b/ny, c/nz)
+    
+    # Set init spacing from input
+    spacing_x, spacing_y, spacing_z = a/nx, b/ny, c/nz
 
     # There should be a symmetry adaption here probably ... 
+    # TODO: Here, check the compatibility -> DONE, but test.
+    if use_sym:
+        sym_grid_shape = symmetry.find_spacegroup_compatible_gridshape((nx,ny,nz),
+                                                      spacegroup,
+                                                      a,
+                                                      b,
+                                                      c,
+                                                      search_extent=10)
+        nx, ny, nz = sym_grid_shape
+
+    true_spacing = (a/nx, b/ny, c/nz)
 
     #print('True spacing: ', true_spacing)
     #print('(nx, ny, nz) =', (nx, ny, nz))
@@ -431,10 +463,18 @@ else:
         a,b,c = np.linalg.norm(unitcell.get_cell()[0,:]),\
                 np.linalg.norm(unitcell.get_cell()[1,:]),\
                 np.linalg.norm(unitcell.get_cell()[2,:])
+        
         nx,ny,nz = ma.ceil(a/spacing_x), ma.ceil(b/spacing_y), ma.ceil(c/spacing_z)
         
+        # TODO: Fix this, i.e. make sure the new version of the grid shape compatibility function works -> DONE, but test!
         if use_sym:
-            nx,ny,nz = symmetry.find_spacegroup_compatible_gridshape((nx,ny,nz), spacegroup, search_denser=True)
+            sym_grid_shape = symmetry.find_spacegroup_compatible_gridshape((nx,ny,nz),
+                                                                     spacegroup,
+                                                                     a,
+                                                                     b,
+                                                                     c,
+                                                                     search_extent=10)
+            nx, ny, nz = sym_grid_shape
             #print("Determined grid spacing compatible with spacegroup.")
 
         true_spacing = (a/nx, b/ny, c/nz)
@@ -488,14 +528,11 @@ batch_log.write("\n\n\n")
 if args.ra:
     batch_log.write("Removed sampling atoms " + str(atom) + " from structure.\n")
 
-if not args.space:
-    batch_log.write('True spacing: ' + str(true_spacing) + "\n")
-    batch_log.write('(nx, ny, nz) =' + str((nx, ny, nz)) + "\n")
-else:
-    if use_sym:
-        batch_log.write("Determined grid spacing compatible with spacegroup.\n")
-    batch_log.write('Desired spacing: ' + str((spacing_x, spacing_y, spacing_z)) + ' True spacing: ' + str(true_spacing) + "\n")
-    batch_log.write('(nx, ny, nz) =' + str((nx, ny, nz))+ "\n")
+
+if use_sym:
+    batch_log.write('Determined grid shape compatible with spacegroup.\n')
+batch_log.write('Initial spacing: ' + str((spacing_x, spacing_y, spacing_z)) + ' True spacing: ' + str(true_spacing) + "\n")
+batch_log.write('Input grid shape: (nx, ny, nz) = ' + str((nx, ny, nz)) + ' True grid shape: (nx, ny, nz) = ' + str((nx, ny, nz)) + "\n")
 
 
 batch_log.write("Radial cutoff [Å]: " + str(args.rc) + "\n")
@@ -599,8 +636,27 @@ batch_log.write("supercell from uc params: " + str(supercell_from_unitcell_wo_io
 batch_log.write("supercell from uc cell: " + str(supercell_from_unitcell_wo_ions.get_cell()) + "\n")
 
 batch_log.write("\n")
-batch_log.write("Spacegroup, unitcell: " + str(ase.spacegroup.get_spacegroup(unitcell, 1.0e-6)) + "\n")
-batch_log.write("Spacegroup, supercell: " + str(ase.spacegroup.get_spacegroup(supercell_from_unitcell_wo_ions, 1.0e-6)) + "\n")
+# TODO: Update the printing of this spacegroup infromation
+#batch_log.write("Spacegroup, unitcell: " + str(ase.spacegroup.get_spacegroup(unitcell, 1.0e-6)) + "\n") # OLD, DEPRECATE!
+#batch_log.write("Spacegroup, supercell: " + str(ase.spacegroup.get_spacegroup(supercell_from_unitcell_wo_ions, 1.0e-6)) + "\n") # OLD, DEPRECATE
+spacegroup_gemmi_table_idx = list(gemmi.spacegroup_table_itb()).index(spacegroup)
+batch_log.write("Spacegroup, unitcell:  table index " + str(spacegroup_gemmi_table_idx) + " ; " + str(spacegroup) + "\n")
+
+try:
+    tmp_supercell_spacegroup = symmetry.find_matching_gemmi_spacegroup_from_spglib_dataset(
+                                  symmetry.spglib.get_symmetry_dataset(
+                                  symmetry.atoms_to_spglib_cell_tuple(supercell_from_unitcell_wo_ions)
+                                  )
+                                  )
+    assert len(tmp_supercell_spacegroup) == 1 or (len(tmp_supercell_spacegroup) >= 1 
+                                                  and all([gsg.number == 68 for gsg in tmp_supercell_spacegroup]))
+    
+    tmp_supercell_spacegroup = tmp_supercell_spacegroup[0]
+    tmp_supercell_spacegroup_idx = list(gemmi.spacegroup_table_itb()).index(tmp_supercell_spacegroup)
+except:
+    tmp_supercell_spacegroup = "Not found."
+
+batch_log.write("Spacegroup, supercell: table index " + str(tmp_supercell_spacegroup_idx) + " ; " + str(tmp_supercell_spacegroup) + "\n")
 
 # "Middle" unit cell (we don't need this though, since pbc)
 #uc_indices = [int((i//2)-1) if i % 2 == 0 else int((i-1)//2) for i in num_cells]
@@ -647,22 +703,6 @@ assert (supercell_frac_grid_full[unitcell_included] == supercell_frac_grid).all(
 
 #######################################################################
 
-## Old version of grid_gen_script.py:
-#sampler = sample.UnitCellSampler(lgps)
-#sampler.generate_grid_vectors(n_frac=(nx, ny, nz), vdw_scale=args.vdw)
-#sampler.spacegroup = args.sg # Set spacegroup for the sampler
-
-# New, supercell sampler
-sampler = sample.UnitCellSampler(supercell_from_unitcell_wo_ions) # DONE
-sampler.n_frac = (nx, ny, nz)
-sampler.n_supercell = num_cells 
-
-if args.sg:
-    sampler.spacegroup = args.sg # Set spacegroup for the sampler
-
-if args.guc:
-    batch_log.write("Passing unitcell information (input structure) to UCS and gemmi.\n")
-    sampler.gemmi_unitcell = unitcell
 
 batch_log.write("Spacegroup input: " + str(args.sg) + "\n")
 batch_log.write("Symmetry: " + str(use_sym) + "\n")
@@ -774,10 +814,11 @@ n_vdw_excluded = np.count_nonzero(np.logical_not(unitcell_ucs.vdw_included))
 
 batch_log.write("Determining actual number of required calculations, and corresponding grid points...\n")
 
+# TODO: Here we need to update the setting of the spacegroup!!! -> DONE, but test!
 if use_sym:
     bool_grid = gemmi.Int8Grid(nx,ny,nz)
-    bool_grid.spacegroup = gemmi.find_spacegroup_by_number(spacegroup)
-
+    #bool_grid.spacegroup = gemmi.find_spacegroup_by_number(spacegroup) OLD! Deprecate this
+    bool_grid.spacegroup = spacegroup # New! This is gemmi.SpaceGroup instance
 
 
     for idx, grid_point in enumerate(supercell_cart_grid_full): # originally looped over unitcell_grid
