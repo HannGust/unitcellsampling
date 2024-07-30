@@ -843,6 +843,81 @@ def spglib_dataset_to_gemmi_spacegroup_by_hall(spglib_dataset:dict):
     return gemmi_spgrp_from_hall
 
 
+# TODO: Test I guess, but it should work without issue
+def get_gemmi_spacegroup_property_dict(gemmi_spgrp):
+    """Constructs and returns a dict of the properties
+    and information of a gemmi.SpaceGroup, contained in its
+    attributes and returned by some methods.
+
+    """
+    return {"number":gemmi_spgrp.number,
+            "ccp4":gemmi_spgrp.ccp4,
+            "hm":gemmi_spgrp.hm,
+            "ext":gemmi_spgrp.ext,
+            "hall":gemmi_spgrp.hall,
+            "basisop":gemmi_spgrp.basisop,
+            "xhm":gemmi_spgrp.xhm(),
+            "short_name":gemmi_spgrp.short_name(),
+            "is_enantiomorphic":gemmi_spgrp.is_enantiomorphic(),
+            "is_sohncke":gemmi_spgrp.is_sohncke(),
+            "is_symmorphic":gemmi_spgrp.is_symmorphic(),
+            "is_centrosymmetric":gemmi_spgrp.is_centrosymmetric(),
+            "point_group_hm":gemmi_spgrp.point_group_hm(),
+            "laue_str":gemmi_spgrp.laue_str(),
+            "crystal_system_str":gemmi_spgrp.crystal_system_str(),
+            "is_reference_setting":gemmi_spgrp.is_reference_setting(),
+            "centring_type":gemmi_spgrp.centring_type(),
+            "centred_to_primitive":gemmi_spgrp.centred_to_primitive(),
+            "operations":gemmi_spgrp.operations()
+            }
+
+
+# TODO: Finished! Now test it!
+def compare_gemmi_spacegroups(gemmi_spgrp_1:dict, gemmi_spgrp_2:gemmi.SpaceGroup, return_dict=False):
+    """Compares two gemmi.SpaceGroup objects and checks for equality. This is an alternative comaprison, where
+    first a test comparison is made through a direct "==" evaluation. Then, if this fails,
+    each property is compared in sequence, and then also some data returned from methods.
+    The comparison consists of the following properties:
+        number - Spacegroup number (1-230)
+        ccp4 - ccp4 number
+        hm - Hermann-Mauguin symbol (HM symbol)
+        ext - Extension to the HM symbol
+        hall - Hall symbol
+        basisop - Change of basis operator
+        xhm - Extended HM symbol
+        short_name - Short name
+        is_enantiomorphic - Whether spacegroup is enantiomorphic
+        is_sohncke - Whether spacgroup is Sockne
+        is_symmorphic - Whether spacegroup is symmorphic
+        is_centrosymmetric - Whether spacegroup is centrosymmetric
+        point_group_hm - HM name of point group
+        laue_str - name of the Laue class
+        crystal_system_str - Crystal system
+        is_reference_setting - Whether spacegorup is in reference setting
+        centring_type - Centering type
+        centred_to_primitive - Operation to transform into primitive setting
+        operations - Spacegroup operations in the from of a gemmi.GroupOps-object
+    """
+    # First attempt direct comparison
+    if gemmi_spgrp_1 == gemmi_spgrp_2 and not return_dict:
+        return True
+    
+    # If direct comparison fails or you want more output,
+    # do all pariwise comparisons
+    gemmi_spgrp_1_prop = get_gemmi_spacegroup_property_dict(gemmi_spgrp_1)
+    gemmi_spgrp_2_prop = get_gemmi_spacegroup_property_dict(gemmi_spgrp_2)
+
+    # Get comparison dict:
+    comp_dict = {key:(gemmi_spgrp_1_prop[key] == gemmi_spgrp_2_prop[key]) for key in gemmi_spgrp_1_prop.keys()}
+    
+    if return_dict:
+        # return entire comaprison result dict
+        return comp_dict
+    else:
+        # Compile all comparison results, return true only if all are equal:
+        return all(comp_dict.values())
+
+
 # TODO:Test this - This seems to work now. Corrected the spglib_dataset key to the correct one: 'hall'
 def check_spacegroup_match_between_spglib_and_gemmi(spglib_dataset:dict, gemmi_spgrp:gemmi.SpaceGroup, return_list=False, print_list=False):
     """Compares an spglib symmetry dataset, which contains spacegroup information,
@@ -950,20 +1025,21 @@ def clean_symops_translations(symops:list):
 
 # This is the simple/direct function
 # TODO: Test this in sampling.
-def match_cell_tuple_with_gemmi_spacegroup(cell_tuple, clean=True, wrap=False):
-    """From an atoms object, attempt to find the matching spacegroup
-    in gemmi, and return a gemmi.SpaceGroup object that are in accord with the atoms object
+def match_cell_tuple_with_gemmi_spacegroup(cell_tuple, clean=True, wrap=False, symprec=0.00001):
+    """From a spglib cell tuple, attempt to find the matching spacegroup
+    in gemmi, and return a gemmi.SpaceGroup object that are in accord with the cell tuple object
     as well as the symmetry dataset of this structure from spglib.
     The clean and wrap arguments are directly passed to the spacegroup matching function
     find_matching_gemmi_spacegroup_from_spglib_dataset that is used to find the corresponding 
-    spacegroup in gemmi. Also returns the symmetry dataset from spglib.
+    spacegroup in gemmi. The symprec argument is directly passed to spglibs
+    get_symmetry_dataset-function. Also returns the symmetry dataset from spglib.
     
     Default settings involves comparisons of the spacegroup operations after \"cleaning\" (clean=True)
     of the spglib operations, which means wrapping and reducing numbers very close to
     0.0 or 1.0 to 0.0 in the translational parts of the symmetry operations.
     """
     
-    sym_dataset = spglib.get_symmetry_dataset(cell_tuple)
+    sym_dataset = spglib.get_symmetry_dataset(cell_tuple, symprec=symprec)
 
     # Here, try matching.
     try:
@@ -987,11 +1063,28 @@ def match_cell_tuple_with_gemmi_spacegroup(cell_tuple, clean=True, wrap=False):
     return gemmi_spgrp, sym_dataset
 
 
-# Not sure if needed
-def match_atoms_with_gemmi_spacegroup(atoms:ase.Atoms, clean=True, wrap=False):
+# Turns out that this is handy in the batch analysis
+# TODO: Test it in sampling.
+def match_atoms_with_gemmi_spacegroup(atoms:ase.Atoms, clean=True, wrap=False, symprec=0.00001):
+    """From an atoms object, attempt to find the matching spacegroup
+    in gemmi, and return a gemmi.SpaceGroup object that are in accord with the atoms object
+    as well as the symmetry dataset of this structure from spglib.
+    This is effectively a wrapper around the match_cell_tuple_with_gemmi_spacegroup,
+    and calls this function to find the matching spacegroup, after converting the
+    atoms object to a spglib cell tuple.
+
+    The clean and wrap arguments are passed to the spacegroup matching function
+    find_matching_gemmi_spacegroup_from_spglib_dataset that is used to find the corresponding 
+    spacegroup in gemmi. The symprec argument is passed to spglibs
+    get_symmetry_dataset-function. Also returns the symmetry dataset from spglib.
+    
+    Default settings involves comparisons of the spacegroup operations after \"cleaning\" (clean=True)
+    of the spglib operations, which means wrapping and reducing numbers very close to
+    0.0 or 1.0 to 0.0 in the translational parts of the symmetry operations.
+    """
     cell_tuple = atoms_to_spglib_cell_tuple(atoms)
 
-    gemmi_spgrp, sym_dataset = match_cell_tuple_with_gemmi_spacegroup(cell_tuple, clean=clean, wrap=wrap)
+    gemmi_spgrp, sym_dataset = match_cell_tuple_with_gemmi_spacegroup(cell_tuple, clean=clean, wrap=wrap, symprec=symprec)
 
     # With these checks above, we are done, and can convert back to atoms object.
     matching_atoms = spglib_cell_tuple_to_atoms(cell_tuple)

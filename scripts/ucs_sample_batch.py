@@ -27,7 +27,7 @@ from unitcellsampling import autocreated_methods # This is better
 from unitcellsampling import autocreated_methods_structures_mcloud_rest_WO_duplabels_nolog_nosubdircalc 
 
 # predefined by Ben
-from unitcellsampling.energy_calculator import cp2k_dft
+from unitcellsampling.energy_calculator import cp2k_dft, Li13Si4_test
 
 # New cp2k dft methods and wrappers
 from unitcellsampling import cp2k_calculators
@@ -59,7 +59,7 @@ save_energies_as_txt = True # Adds saving the enrgies as .txt files with np.save
 # Define and import methods like in the main cli script
 
 #method_list = ['pbe', 'lammps_lj', 'lammps_lj_coul', 'ff_boulfelfel', 'ff_boulfelfel_buck', 'ff_garcia_sanches', 'ase_lj', '54189', '73679']
-method_list = []
+method_list = ['Li13Si4_test']
 
 # Adding CP2K dft methods 
 # This is the simple predefined one, should move it...
@@ -375,6 +375,11 @@ elif method in cp2k_dft_methods.keys() and method == "cp2k_calculator_from_input
     #energies = sampler.calculate_energies(grid_points=supercell_cart_grid,
     #        method=cp2k_calc, atom=atom, exploit_symmetry=use_sym)
 
+# NOTE: This is a very simple, nonphysical UFF inspired forcefield
+# designed only for fast testing of the symmetry feature when sampling
+# the Li13Si4 structure.
+elif method == "Li13Si4_test":
+    calc_method = Li13Si4_test
 
 else:
     print("No default method defined yet.")

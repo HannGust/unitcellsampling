@@ -15,6 +15,7 @@ import re
 import ase
 import ase.io
 import gemmi
+from unitcellsampling import symmetry
 from ase.spacegroup import Spacegroup, get_spacegroup
 from ase.io.cube import write_cube
 
@@ -130,10 +131,11 @@ def read_batch_log(logfile):
     return log_txt
 
 
+# NOTE: UPDATED THIS TO MATCH THE OUTPUT FROM THE UPDATED BATCHER 
 def get_grid_shape_from_batch_log(log_txt):
     """Reads the grid size from a batch log.
     """
-    grid_shape_pattern="\(nx, ny, nz\) =\(([0-9]+), *([0-9]+), *([0-9]+)\)"
+    grid_shape_pattern="True grid shape: +\(nx, ny, nz\) = \(([0-9]+), *([0-9]+), *([0-9]+)\)"
 
     grid_shape_match = re.search(grid_shape_pattern, log_txt)
 
@@ -144,7 +146,8 @@ def get_grid_shape_from_batch_log(log_txt):
 
     return grid_shape
 
-
+# TODO: UPDATED THIS TO WORK WITH THE NEW SYMMETRY OUTPUT IN THE UPDATED BATCHER. Updated and cleaned up code from testing
+# spacegroup comparison and validation. This seems to work now!
 def get_symmetry_from_batch_log(log_txt):
     """Reads the batch log and extracts the symmetry option,
     and if needed, the spacegroup.
@@ -167,40 +170,55 @@ def get_symmetry_from_batch_log(log_txt):
         raise ValueError("ERROR: symmetry setting neither True nor False.")
 
     # Read spacegroup if needed
+    # TODO: Has been updated to read new logs and get gemmi spacegroups. But needs testing!
     if symmetry_setting:
-        spgrp_sc_match = re.search("Spacegroup, supercell: +([0-9]+) +([^ ].+)", log_txt)
-        spgrp_uc_match = re.search("Spacegroup, unitcell: +([0-9]+) +([^ ].+)", log_txt)
-
-
-        # DEBUG:
-        #if spgrp_sc_match is None:
-        #    print("sc spacegroup match is None.")
-        #    print(spgrp_sc_match)
-
-        #if spgrp_uc_match is None:
-        #    print("uc spacegroup match is None.")
-        #    print(spgrp_uc_match)
-
-        # DEBUG:
-        #print("spgrp mathed groups:")
-        #print(spgrp_sc_match.groups())
-        #print(spgrp_uc_match.groups())
-
-        spgrp_sc_num = int(spgrp_sc_match.group(1))
-        spgrp_uc_num = int(spgrp_uc_match.group(1))
-
-        spgrp_sc_name = spgrp_sc_match.group(2)
+        #spgrp_sc_match = re.search("Spacegroup, supercell: +([0-9]+) +([^ ].+)", log_txt) # OLD, DEPRECATE
+        #spgrp_uc_match = re.search("Spacegroup, unitcell: +([0-9]+) +([^ ].+)", log_txt) # OLD, DEPRECATE
+        
+        spgrp_sc_match = re.search("Spacegroup, supercell: +table index +([0-9]+) +; +<gemmi.SpaceGroup\(\"(.*)\"\)>", log_txt)
+        if spgrp_sc_match is None:
+            spgrp_sc_match = re.search("Spacegroup, supercell: +table index NONE +; +Not found\.", log_txt)
+            assert spgrp_sc_match is not None and spgrp_sc_match.group(0) == "Spacegroup, supercell:  table index NONE ; Not found.", "ERROR: Supercell spacegroup information invalid."
+            spgrp_sc_idx = None 
+            spgrp_sc_name = None
+            print("WARNING: Supercell spacegroup information not available. Double-check results!")
+        else:
+            spgrp_sc_idx = int(spgrp_sc_match.group(1))
+            spgrp_sc_name = spgrp_sc_match.group(2)
+        
+        spgrp_uc_match = re.search("Spacegroup, unitcell: +table index +([0-9]+) +; +<gemmi.SpaceGroup\(\"(.*)\"\)>", log_txt)
+        spgrp_uc_idx = int(spgrp_uc_match.group(1))
         spgrp_uc_name = spgrp_uc_match.group(2)
+                
+        if spgrp_sc_idx is not None:
+            assert spgrp_sc_idx == spgrp_uc_idx, "Spacegroup indices not consistent!"
+        if spgrp_sc_name is not None:
+            assert spgrp_sc_name == spgrp_uc_name, "Spacegroup names not consistent!"
 
-        assert spgrp_sc_num == spgrp_uc_num, "Spacegroup numbers not consistent!"
-        assert spgrp_sc_name == spgrp_uc_name, "Spacegroup names not consistent!"
+        gemmi_spgrp_table = list(gemmi.spacegroup_table_itb()) 
+        
+        spgrp_from_idx = gemmi_spgrp_table[spgrp_uc_idx]
+        
+        spgrp_from_name = gemmi.SpaceGroup(spgrp_uc_name)
+        #test_spgrp_from_name = gemmi.find_spacegroup_by_name(spgrp_uc_name)
 
-        spgrp_from_num = Spacegroup(spgrp_uc_num)
-        spgrp_from_name = Spacegroup(spgrp_uc_name)
+        ### NOTE: There is an issue when reading a gemmi.SpaceGroup from the table, if
+        ### it has been converted to a list. It seems like the item is not present in the list
+        ### anymore after that. Very wierd, I do not know what causes this. The spacegroups seems
+        ### to be the same still though. I will instead compare operations.
 
-        assert spgrp_from_num == spgrp_from_name, "Spacegroups are not the same!"
+        # This direct comparison between the gemmi.SpaceGroups does not work in general ... Caused by the "bug" mentioned in the note above
+        #assert spgrp_from_idx == spgrp_from_name, "Spacegroups from name and index are not the same!"
+        # Instead assert equality of spacegroup ops
+        assert symmetry.compare_gemmi_spacegroups(spgrp_from_idx, spgrp_from_name), "Spacegroups from name and from index are not equal."
+        assert symmetry.are_symops_equal(symmetry.gemmi_spacegroup_to_symops_list(spgrp_from_idx), symmetry.gemmi_spacegroup_to_symops_list(spgrp_from_name)), "Spacegroup from name and from index have differing symmetry operations!"
+        #assert spgrp_from_name.operations() == spgrp_from_idx.operations(), "Spacegroup from name and from index have different group ops objects!" # This is already done in the compareison funciton
+        assert spgrp_from_name.operations().sym_ops == spgrp_from_idx.operations().sym_ops, "Spacegroup from name and from index have differing sym_ops!"
+        assert list(spgrp_from_name.operations().sym_ops) == list(spgrp_from_idx.operations().sym_ops), "Spacegroup from name and from index have differing sym_ops-lists!"
 
-        spgrp = spgrp_from_num
+
+
+        spgrp = spgrp_from_idx
 
     else:
         spgrp = None
@@ -405,11 +423,12 @@ class UCSBatchAnalyzer():
         # Check uniqueness: Both check shape, and full arrays
         assert stacked_unique_indices.shape == full_stacked_indices.shape, "ERROR: Full stacked index array is not unique, shape mismatch!!!"
         assert (full_stacked_indices == stacked_unique_indices[inv_indx]).all(), "ERROR: Full index array is not unique!!!"
-        
 
+
+    # TODO: UPDATE THIS TO USE SYMMETRY CORRECTLY
     def compile_grid(self):
         """Collects the results of the energy calculations in each individual
-        and combines/compiles them into a full grid in the form of a
+        batch and combines/compiles them into a full grid in the form of a
         3D numpy array.
         """
         # Get necessary info from logfile
@@ -423,10 +442,16 @@ class UCSBatchAnalyzer():
         # the spacegroup a little if necessary
         symprec = 10**-5
         max_symprec = 10**-3
-
+        
+        # NOTE: Have changed so that the correct function is called.
+        # NOTE: Added so that symprec is passed in the relevant new functions in the symmetry module.
         if use_symmetry:
             while True:
-                spgrp_from_atoms = get_spacegroup(self.atoms, symprec=symprec)
+                #spgrp_from_atoms = get_spacegroup(self.atoms, symprec=symprec) # This is old spacegroup setting! DEPRECATE!
+                cell_tuple, spgrp_from_atoms, sym_dataset  = symmetry.match_atoms_with_gemmi_spacegroup(self.atoms,
+                                                                                                        clean=True,
+                                                                                                        wrap=True,
+                                                                                                        symprec=symprec) # NEW!
                 try:
                     assert spgrp == spgrp_from_atoms, "ERROR: Spacegroups based on log vs. structure are not the same!!!"
                 except AssertionError as ass_err:
@@ -490,7 +515,8 @@ class UCSBatchAnalyzer():
             np.nan_to_num(float32_grid, copy=False)
 
             gemmi_float_grid = gemmi.FloatGrid(float32_grid)
-            gemmi_float_grid.spacegroup = gemmi.find_spacegroup_by_number(spgrp_from_atoms.no)
+            #gemmi_float_grid.spacegroup = gemmi.find_spacegroup_by_number(spgrp_from_atoms.no) # OLD! WRONG! Deprecate this!
+            gemmi_float_grid.spacegroup = spgrp_from_atoms # NEW!
 
             gemmi_float_grid.symmetrize_max()
             grid = np.array(gemmi_float_grid.array, dtype=np.float32)

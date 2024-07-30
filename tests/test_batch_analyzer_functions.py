@@ -26,5 +26,5 @@ symmetry_setting, spgrp = get_symmetry_from_batch_log(log_txt)
 
 
 print("Symmetry setting found:", symmetry_setting)
-print("Spacegroup found:", spgrp.no, spgrp.symbol, spgrp.setting)
+print("Spacegroup found:", spgrp, spgrp.number, spgrp.hall)
 

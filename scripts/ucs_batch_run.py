@@ -95,7 +95,7 @@ from unitcellsampling import autocreated_methods # This is better
 # Methods for 1075 of the structures in the rest of the dataset:
 from unitcellsampling import autocreated_methods_structures_mcloud_rest_WO_duplabels_nolog_nosubdircalc 
 
-from unitcellsampling.energy_calculator import cp2k_dft
+from unitcellsampling.energy_calculator import cp2k_dft, Li13Si4_test
 
 # New cp2k dft methods and wrappers
 from unitcellsampling import cp2k_calculators
@@ -203,7 +203,7 @@ batcher_pyscript_path = os.path.join(batcher_script_dir, batch_sampler_pyscript)
 ### Method section is redundant- actually no, just needed to be passed to batches
 
 #method_list = ['pbe', 'lammps_lj', 'lammps_lj_coul', 'ff_boulfelfel', 'ff_boulfelfel_buck', 'ff_garcia_sanches', 'ase_lj', '54189', '73679']
-method_list = []
+method_list = ['Li13Si4_test']
 
 # Adding CP2K dft methods 
 # This is the simple predefined one, should move it...
@@ -413,7 +413,9 @@ if use_sym:
                                                                                       spglib_standardize=args.sym_spglib_std,
                                                                                       change_basis=args.sym_change_basis)
         unitcell = spgrp_matching_unitcell
-
+else:
+    # If symmetry should not be used, set spacegroup to None
+    spacegroup = None
 ## Set the number of points in the grid in each dimension (or equivalently, the mesh size)
 ## and if symmetry is used, make sure grid and spacegroup are compatible
 # TODO: If symmetry is used, check/determine nearest shape that is compatible with spacegroup -> DONE, see todo below
@@ -636,27 +638,35 @@ batch_log.write("supercell from uc params: " + str(supercell_from_unitcell_wo_io
 batch_log.write("supercell from uc cell: " + str(supercell_from_unitcell_wo_ions.get_cell()) + "\n")
 
 batch_log.write("\n")
-# TODO: Update the printing of this spacegroup infromation
+# TODO: Update the printing of this spacegroup information
 #batch_log.write("Spacegroup, unitcell: " + str(ase.spacegroup.get_spacegroup(unitcell, 1.0e-6)) + "\n") # OLD, DEPRECATE!
 #batch_log.write("Spacegroup, supercell: " + str(ase.spacegroup.get_spacegroup(supercell_from_unitcell_wo_ions, 1.0e-6)) + "\n") # OLD, DEPRECATE
-spacegroup_gemmi_table_idx = list(gemmi.spacegroup_table_itb()).index(spacegroup)
-batch_log.write("Spacegroup, unitcell:  table index " + str(spacegroup_gemmi_table_idx) + " ; " + str(spacegroup) + "\n")
-
-try:
-    tmp_supercell_spacegroup = symmetry.find_matching_gemmi_spacegroup_from_spglib_dataset(
-                                  symmetry.spglib.get_symmetry_dataset(
-                                  symmetry.atoms_to_spglib_cell_tuple(supercell_from_unitcell_wo_ions)
-                                  )
-                                  )
-    assert len(tmp_supercell_spacegroup) == 1 or (len(tmp_supercell_spacegroup) >= 1 
-                                                  and all([gsg.number == 68 for gsg in tmp_supercell_spacegroup]))
+if use_sym:
+    if spacegroup is not None:
+        spacegroup_gemmi_table_idx = list(gemmi.spacegroup_table_itb()).index(spacegroup)
+    else:
+        spacegroup_gemmi_table_idx = "Not found."
+        spacegroup = "NONE"
+    batch_log.write("Spacegroup, unitcell:  table index " + str(spacegroup_gemmi_table_idx) + " ; " + str(spacegroup) + "\n")
     
-    tmp_supercell_spacegroup = tmp_supercell_spacegroup[0]
-    tmp_supercell_spacegroup_idx = list(gemmi.spacegroup_table_itb()).index(tmp_supercell_spacegroup)
-except:
-    tmp_supercell_spacegroup = "Not found."
-
-batch_log.write("Spacegroup, supercell: table index " + str(tmp_supercell_spacegroup_idx) + " ; " + str(tmp_supercell_spacegroup) + "\n")
+    try:
+        tmp_supercell_spacegroup = symmetry.find_matching_gemmi_spacegroup_from_spglib_dataset(
+                                      symmetry.spglib.get_symmetry_dataset(
+                                      symmetry.atoms_to_spglib_cell_tuple(supercell_from_unitcell_wo_ions)
+                                      )
+                                      )
+        assert len(tmp_supercell_spacegroup) == 1 or (len(tmp_supercell_spacegroup) >= 1 
+                                                      and all([gsg.number == 68 for gsg in tmp_supercell_spacegroup]))
+        
+        tmp_supercell_spacegroup = tmp_supercell_spacegroup[0]
+        tmp_supercell_spacegroup_idx = list(gemmi.spacegroup_table_itb()).index(tmp_supercell_spacegroup)
+    except:
+        tmp_supercell_spacegroup = "Not found."
+        tmp_supercell_spacegroup_idx = "NONE"
+    
+    batch_log.write("Spacegroup, supercell: table index " + str(tmp_supercell_spacegroup_idx) + " ; " + str(tmp_supercell_spacegroup) + "\n")
+else:
+    batch_log.write("Symmetry is not used. Spacegroup is not determined." + "\n")
 
 # "Middle" unit cell (we don't need this though, since pbc)
 #uc_indices = [int((i//2)-1) if i % 2 == 0 else int((i-1)//2) for i in num_cells]
