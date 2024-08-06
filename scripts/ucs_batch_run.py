@@ -404,7 +404,8 @@ if use_sym:
     else:
         # TODO: Change here so that a gemmi.SpaceGroup is obtained -> DONE, but test.
         # TODO: Make CLI arguments to get more control over symmetry adaption here
-        #spacegroup = get_spacegroup(unitcell) # OLD! DEPRECATE
+        _OLD_spacegroup = get_spacegroup(unitcell) # OLD! DEPRECATE. KEEP ONLY FOR PRINTING INFO.
+
         spgrp_matching_unitcell, spacegroup, basis_change_tuple = symmetry.prepare_matching_structure_and_spacegroup(atoms=unitcell,
                                                                                       clean=True,
                                                                                       wrap=False,
@@ -638,9 +639,30 @@ batch_log.write("supercell from uc params: " + str(supercell_from_unitcell_wo_io
 batch_log.write("supercell from uc cell: " + str(supercell_from_unitcell_wo_ions.get_cell()) + "\n")
 
 batch_log.write("\n")
-# TODO: Update the printing of this spacegroup information
-#batch_log.write("Spacegroup, unitcell: " + str(ase.spacegroup.get_spacegroup(unitcell, 1.0e-6)) + "\n") # OLD, DEPRECATE!
-#batch_log.write("Spacegroup, supercell: " + str(ase.spacegroup.get_spacegroup(supercell_from_unitcell_wo_ions, 1.0e-6)) + "\n") # OLD, DEPRECATE
+# NOTE: Printing of the new spacegroup information has been updated (in prev. update of batch analzer).
+# TODO: Add debug printing/comparison of old spacegroup determination/information prior to update
+### THIS IS PRINTING OF OLD SYMMETRY INFORMATION: ###
+batch_log.write("\n")
+batch_log.write("DEBUG: Printing old, deprecated symmetry information below.\n")
+batch_log.write("DEBUG (OLD SYMMETRY INFO): OLD SPACEGROUP, UNITCELL, number and name: " + str(_OLD_spacegroup.no) + ", " + str(_OLD_spacegroup.symbol) + " \n") # OLD, DEPRECATE!
+
+_OLD_GEMMI_spacegroup = gemmi.find_spacegroup_by_number(_OLD_spacegroup) # OLD! Deprecate this
+try:
+    _OLD_GEMMI_idx = list(gemmi.spacegroup_table_itb()).index(_OLD_GEMMI_spacegroup)
+except:
+    _OLD_GEMMI_idx = "(NOT FOUND)"
+
+SYM_DEBUG_CMPR_old_new_spgrps = symmetry.compare_gemmi_spacegroups(_OLD_GEMMI_spacegroup, spacegroup)
+SYM_DEBUG_CMPR_old_new_ops = symmetry.are_symops_equal(symmetry.gemmi_spacegroup_to_symops_list(_OLD_GEMMI_spacegroup),
+                                                       symmetry.gemmi_spacegroup_to_symops_list(spacegroup))
+
+batch_log.write("DEBUG (OLD SYMMETRY INFO): OLD/NEW SPACEGROUP COMPARISONS: groups equal = " + str(SYM_DEBUG_CMPR_old_new_spgrps) + " ;;  operations equal = "  + str(SYM_DEBUG_CMPR_old_new_ops)+ "\n") # OLD, DEPRECATE!
+batch_log.write("DEBUG (OLD SYMMETRY INFO): OLD SPACEGROUP INFO, gemmi: table index " + str(_OLD_GEMMI_idx) + " ;; "  + str(_OLD_GEMMI_spacegroup)+ "\n") # OLD, DEPRECATE!
+
+batch_log.write("\n")
+### 
+#batch_log.write("DEBUG (OLD SYMMETRY INFO): Spacegroup, unitcell: " + str(ase.spacegroup.get_spacegroup(unitcell, 1.0e-6)) + "\n") # OLD, DEPRECATE!
+#batch_log.write("DEBUG (OLD SYMMETRY INFO): Spacegroup, supercell: " + str(ase.spacegroup.get_spacegroup(supercell_from_unitcell_wo_ions, 1.0e-6)) + "\n") # OLD, DEPRECATE
 if use_sym:
     if spacegroup is not None:
         spacegroup_gemmi_table_idx = list(gemmi.spacegroup_table_itb()).index(spacegroup)
