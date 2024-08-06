@@ -314,23 +314,56 @@ def get_conv_std_structure_pymatgen(atoms):
         return conv_std_atoms
 
 
-def is_close_atoms(atoms1:ase.Atoms, atoms2:ase.Atoms, detailed=False):
+# NOTE: Added rtol and atol tolerance arguments that are directly passed to np.is_close
+#       Beware, changed defaults of these as well!
+def is_close_atoms(input_atoms1:ase.Atoms, input_atoms2:ase.Atoms, rtol=10**(-5), atol=10**(-5), 
+                   wrap_positions=True, debug=True):
     """Makes the equality check for atoms, which consists of 
     positions, numbers, cell, and periodic boundary conditions,
     but applies np.isclose instead of strict equality for positions and
     cell, to make small differences negligible.
     Also makes the np.isclose-check symmetric by construction, i.e.
-    defines it as np.isclose(a,b) AND np.isclose(b,a)."""
+    defines it as np.isclose(a,b) AND np.isclose(b,a).
+    Tolerances rtol and atol arguments are directly passed to np.isclose.
+    wrap_positions controls if positions of the atoms objects should be wrapped
+    according to periodicity before comparison."""
+    # NOTE: Added this to take care of wrapping
+    atoms1 = input_atoms1.copy()
+    atoms2 = input_atoms2.copy()
+    if wrap_positions:
+        atoms1.wrap()
+        atoms2.wrap()
+
     if not len(atoms1.positions) == len(atoms2.positions):
         return False
     if not len(atoms1.numbers) == len(atoms2.numbers):
         return False
-    eq_positions = (np.isclose(atoms1.positions, atoms2.positions).all()
-                    and np.isclose(atoms2.positions, atoms1.positions).all())
+
+    eq_positions = (np.isclose(atoms1.positions, atoms2.positions, rtol=rtol, atol=atol).all()
+                    and np.isclose(atoms2.positions, atoms1.positions, rtol=rtol, atol=atol).all())
     eq_numbers = (atoms1.numbers == atoms2.numbers).all()
-    eq_cells = (np.isclose(atoms1.cell, atoms2.cell).all() 
-                and np.isclose(atoms2.cell, atoms1.cell).all())
+    eq_cells = (np.isclose(atoms1.cell, atoms2.cell, rtol=rtol, atol=atol).all() 
+                and np.isclose(atoms2.cell, atoms1.cell, rtol=rtol, atol=atol).all())
     eq_pbc = (atoms1.pbc == atoms2.pbc).all()
+
+    # DEBUG:
+    if debug:
+        if not eq_positions:
+            print("Positions differ:")
+            print(np.array2string(atoms1.positions), np.array2string(atoms2.positions), sep="\n")
+            print()
+        if not eq_numbers:
+            print("Numbers differ:")
+            print(atoms1.numbers, atoms2.numbers)
+            print()
+        if not eq_cells:
+            print("Cells differ:")
+            print(np.array2string(atoms1.cell), np.array2string(atoms2.cell), sep="\n")
+            print()
+        if not eq_pbc:
+            print("PBCs differ:")
+            print(atoms1.pbc, atoms2.pbc)
+            print()
 
     return (eq_positions and eq_numbers and eq_cells and eq_pbc)
 
@@ -1295,12 +1328,16 @@ def prepare_matching_structure_and_spacegroup(atoms:ase.Atoms, clean=True, wrap=
     # that tuples are the same, and atoms are the same (or close)
 
     if (match_cell_tuple[0] == init_cell_tuple[0]).all() and (match_cell_tuple[1] == init_cell_tuple[1]).all() and (match_cell_tuple[2] == init_cell_tuple[2]).all():
+        # NOTE: I have now relax this sanity check somewhat in both absolute and relative tolerance.
+        #       Added so that these tolerances can be given and passed to np.is_close
+        #       I also added option to wrap positions before comparing. This turned out to be the main issue for some structures.
         # Sanity check
-        assert is_close_atoms(atoms, match_atoms), "ERROR: No processing of structure, but input atoms and match atoms differ!"
+        assert is_close_atoms(atoms, match_atoms, rtol=10**(-6), atol=10**(-6), wrap_positions=True, debug=True), "ERROR: No processing of structure, but input atoms and match atoms differ!"
         # This need not be true, numerical differences can cause this to be false
         print("CHECK: Are atoms == match_atoms?: ", atoms == match_atoms)
     
-    if is_close_atoms(atoms, match_atoms):
+    # NOTE: Added explicitly the newly added tolerance and position wrapping arguments
+    if is_close_atoms(atoms, match_atoms, rtol=10**(-6), atol=10**(-6), wrap_positions=True, debug=True):
         # Retain the original atoms in this case
         print("Input atoms and match atoms are close. Retaining original atoms.")
         match_atoms = atoms.copy()
