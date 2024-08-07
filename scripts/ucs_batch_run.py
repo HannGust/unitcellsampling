@@ -853,6 +853,10 @@ if use_sym:
     #bool_grid.spacegroup = gemmi.find_spacegroup_by_number(spacegroup) OLD! Deprecate this
     bool_grid.spacegroup = spacegroup # New! This is gemmi.SpaceGroup instance
 
+    # NOTE: Added for constructing/printing of symmetry cube
+    symID_grid = gemmi.FloatGrid(nx,ny,nz)
+    symID_grid.spacegroup = spacegroup
+
 
     for idx, grid_point in enumerate(supercell_cart_grid_full): # originally looped over unitcell_grid
         if not unitcell_included[idx]:
@@ -892,10 +896,35 @@ if use_sym:
         bool_grid.set_value(*grid_point_index_new, 1)
         bool_grid.symmetrize_max()
         n_calculations_total += 1
+
+        # NOTE: Added for constructing/printing of symmetry cube
+        symID_grid.set_value(*grid_point_index_new, n_calculations_total)
+        symID_grid.symmetrize_max()
     
     indices_list = np.array(indices_list, dtype=int)
     cart_grid_coord_list = np.array(cart_grid_coord_list, dtype=np.float64)
     frac_grid_coord_list = np.array(frac_grid_coord_list, dtype=np.float64)
+
+    # NOTE: Printing symmetry cube here:
+    # print symmetry information
+    sym_name = calc_name+'_symInfo'
+    cube_filename = ".".join((sym_name, 'cube'))
+    #with open(cube_filename, 'w') as fp:
+    #    write_cube(fp, unitcell, data=np.array(symID_grid))
+    data = np.array(symID_grid, dtype='int')
+    symmetry_cube = open(cube_filename,'w')
+    symmetry_cube.write('symmetry information file, units: Angstrom?\n')
+    symmetry_cube.write('--------------------------------\n')
+    symmetry_cube.write(''.join(["{:d}".format(1),' ','0.000000 0.000000 0.000000\n']))
+    symmetry_cube.write(''.join(["{:d}".format(nx),' ',"{:1.6f}".format(true_spacing[0]),' ',"{:1.6f}".format(0.),' ',"{:1.6f}".format(0.),'\n']))
+    symmetry_cube.write(''.join(["{:d}".format(ny),' ',"{:1.6f}".format(0.),' ',"{:1.6f}".format(true_spacing[1]),' ',"{:1.6f}".format(0.),'\n']))
+    symmetry_cube.write(''.join(["{:d}".format(nz),' ',"{:1.6f}".format(0.),' ',"{:1.6f}".format(0.),' ',"{:1.6f}".format(true_spacing[2]),'\n']))
+    for i in range(nx):
+        for j in range(ny):
+            for k in range(nz):
+                symmetry_cube.write(''.join(["{:d}".format(data[i,j,k]),'\n']))
+    symmetry_cube.close()
+
 else:
     # Here only the previous vdw exclusion is performed
     indices_list = np.argwhere(unitcell_included.reshape(nx,ny,nz))
