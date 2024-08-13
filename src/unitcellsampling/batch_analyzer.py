@@ -425,11 +425,16 @@ class UCSBatchAnalyzer():
         assert (full_stacked_indices == stacked_unique_indices[inv_indx]).all(), "ERROR: Full index array is not unique!!!"
 
 
-    # TODO: UPDATE THIS TO USE SYMMETRY CORRECTLY
-    def compile_grid(self):
+    # NOTE: HAVE UPDATE THIS TO USE SYMMETRY CORRECTLY
+    # TODO: For now, need to make symmetry check of structure optional. Otherwise some structures fail here...
+    def compile_grid(self, check_symmetry_from_structure=True):
         """Collects the results of the energy calculations in each individual
         batch and combines/compiles them into a full grid in the form of a
         3D numpy array.
+        The check_symmetry_from_structure argument controls whether the spacegroup
+        should be determined also from the sampling structure which is compared with
+        the information in the log file to check that they are the same. This is
+        meant as an optional extra check of the symmetry.
         """
         # Get necessary info from logfile
         grid_shape = self.grid_shape_from_log()
@@ -445,7 +450,9 @@ class UCSBatchAnalyzer():
         
         # NOTE: Have changed so that the correct function is called.
         # NOTE: Added so that symprec is passed in the relevant new functions in the symmetry module.
-        if use_symmetry:
+        # NOTE: Added effect of the check_symmetry_from_structure argument
+        if use_symmetry and check_symmetry_from_structure:
+            print("Performing extra sanity check of symmetry: Comparing spacegroup derived from structure with that in logfile...")
             while True:
                 #spgrp_from_atoms = get_spacegroup(self.atoms, symprec=symprec) # This is old spacegroup setting! DEPRECATE!
                 cell_tuple, spgrp_from_atoms, sym_dataset  = symmetry.match_atoms_with_gemmi_spacegroup(self.atoms,
@@ -464,7 +471,8 @@ class UCSBatchAnalyzer():
                 else:
                     print("Spacegroup read from log vs. determined from structure equal at symprec: ", symprec)
                     break
-
+        elif use_symmetry and not check_symmetry_from_structure:
+            print("check_symmetry_from_structure = False: Skipping symmetry sanity check. Spacegroup info is only read from logfile.")
         
         # Check indices
         idx_arrs = self.collect_index_arrays()
@@ -516,7 +524,8 @@ class UCSBatchAnalyzer():
 
             gemmi_float_grid = gemmi.FloatGrid(float32_grid)
             #gemmi_float_grid.spacegroup = gemmi.find_spacegroup_by_number(spgrp_from_atoms.no) # OLD! WRONG! Deprecate this!
-            gemmi_float_grid.spacegroup = spgrp_from_atoms # NEW!
+            #gemmi_float_grid.spacegroup = spgrp_from_atoms # NEW!
+            gemmi_float_grid.spacegroup = spgrp # NEW - here the spacegroup from log is used, as should be the case. spgrp from atoms should be the same, but now with new option it might not be determined.
 
             gemmi_float_grid.symmetrize_max()
             grid = np.array(gemmi_float_grid.array, dtype=np.float32)
