@@ -899,8 +899,9 @@ if use_sym:
 
         # NOTE: Added for constructing/printing of symmetry cube
         symID_grid.set_value(*grid_point_index_new, n_calculations_total)
-        symID_grid.symmetrize_max()
-    
+
+    # NOTE: Moved line below, symmetrization of symmetry cube, to outside loop, as it is not needed to be inside and it is faster
+    symID_grid.symmetrize_max()
     indices_list = np.array(indices_list, dtype=int)
     cart_grid_coord_list = np.array(cart_grid_coord_list, dtype=np.float64)
     frac_grid_coord_list = np.array(frac_grid_coord_list, dtype=np.float64)
