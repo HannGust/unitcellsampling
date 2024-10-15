@@ -1,6 +1,7 @@
 """This module contains cp2k-based energy calculators and associated
    wrapper functions for unitcellsampling."""
 
+import os
 import ase
 from ase.calculators.cp2k import CP2K, Cp2kShell
 from unitcellsampling.decorators import subdir_calc
@@ -68,7 +69,8 @@ def reset_cp2k_shell(cp2k_calculator, debug=False):
 # Function converting a cp2k-calculator to an ucs calculator
 # (i.e. function with singature ase.Atoms -> float
 def cp2k2ucs(cp2k_calc, base_calc_dir="UCS_CALCS/cp2k_calc", base_label="cp2k",
-             update_mode="label", restart=True, shell_reset_freq=500):
+             update_mode="label", restart=True, shell_reset_freq=500, 
+             rm_restart_wfn=False, rm_wfn_bak=True):
     """Embeds an ase CP2K calculator into a function
     with signature atoms -> float,  required for being
     a ucs calculator. Also provides an update scheme for label and 
@@ -77,7 +79,9 @@ def cp2k2ucs(cp2k_calc, base_calc_dir="UCS_CALCS/cp2k_calc", base_label="cp2k",
     that the option of using wfn file from the previous calculation
     in each step as a wfn restart file exists. This is enabled by
     default.
-    update_mode = label, dir or both. Label is default."""
+    update_mode = label, dir or both. Label is default.
+    rm_restart_wfn = True/False, enables/disables removal of the restart wfn files after use (default = False)
+    rm_wnf_bak = True/False, enables/disables removal of *.RESTART.wfn.bak-* files (default = True)."""
 
     # TODO: Possibly implement file-existence check here
     
@@ -130,6 +134,37 @@ def cp2k2ucs(cp2k_calc, base_calc_dir="UCS_CALCS/cp2k_calc", base_label="cp2k",
         cp2k_calc.calculate(atoms=atoms, properties=['energy'])
 
         energy = cp2k_calc.results['energy']
+        
+        # After energy has been computed: Remove the *.bak-n restart files from this calculation. (If desired: default is yes)
+        if rm_wfn_bak:
+            # Remove the currect *RESTART.wfn.bak-n files for n up to 10.
+            for num in range(11):
+                wfn_bak_file = calc_dir + "/" + calc_label + "-RESTART.wfn.bak-" + str(num)
+                if os.path.isfile(wfn_bak_file):
+                    os.remove(wfn_bak_file)
+        
+        # Here, if desired, remove the restart-file from the previous run if desired, as it is no longer needed.
+        # Otherwise, restart is not used, remove the one from this run, if desired.
+        # Default should be to keep them.
+        if rm_restart_wfn:
+            if restart:
+                # If restart mode is enabled, then remove the restart file from the previous run.
+                # Only applicable for iterations after the first.
+                if ucs_calc.iter > 1:
+                    if os.path.isfile(restart_file):
+                        os.remove(restart_file)
+                    else:
+                        # If it fails, inform the user.
+                        print("Error: %s file not found" % restart_file)
+            else:
+                # Else, if we do not have restart mode, remove the restart file from the current calculation.
+                current_restart_file = calc_dir + "/" + calc_label + "-RESTART.wfn"
+                if os.path.isfile(current_restart_file):
+                    os.remove(current_restart_file)
+                else:
+                    # If it fails, inform the user.
+                    print("Error: %s file not found" % current_restart_file)
+
 
         return energy
 

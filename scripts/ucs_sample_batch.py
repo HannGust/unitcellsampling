@@ -128,6 +128,10 @@ parser.add_argument('--cp2k_print_level', type=str, action='store', default="MED
 
 parser.add_argument('--cp2k_shell_reset_freq', type=int, action='store', default=500, help="Specify the frequency with which the CP2K-shell is re-instantiated, i.e. reset. If this frequency is N, the cp2k shell is killed and restarted every N:th calculation. This is too avoid the logical unit error arising from too many io-units assigned in the cp2k fortran source code. Too disable this, either set it to a higher number than the total number of calculations, or set it to a value <=0. In the latter case the program will automatically set it to a high value so that no reset is performed. Default: 500")
 
+parser.add_argument('--cp2k_rm_restart_wfn', action='store_true', help="Toggles removal of the cp2k RESTART.wfn files, directly or after they have been reused if cp2k_wfn_mode is on.")
+
+parser.add_argument('--cp2k_keep_wfn_bak', action='store_true', help="Turns off automatic removal of the cp2k RESTART.wfn.bak-N files after each calculation.")
+
 # CP2K command argument - REDUNDANT FOR NOW
 #parser.add_argument('--cp2k_cmd', '--cp2k-command', type=str, action='store', default=default_cp2k_cmd, help="Specify the CP2K-command that is used in the ASE-CP2K calculator interface to start and run the CP2K program. Default: ")
 
@@ -359,7 +363,9 @@ elif method in cp2k_dft_methods.keys() and method == "cp2k_calculator_from_input
                     base_label="cp2k",
                     update_mode="label",
                     restart=wfn_restart,
-                    shell_reset_freq=args.cp2k_shell_reset_freq)
+                    shell_reset_freq=args.cp2k_shell_reset_freq,
+                    rm_restart_wfn=args.cp2k_rm_restart_wfn,
+                    rm_wfn_bak=not args.cp2k_keep_wfn_bak)
 
     # Print the wfn mode setting:
     if wfn_restart:
@@ -370,6 +376,13 @@ elif method in cp2k_dft_methods.keys() and method == "cp2k_calculator_from_input
         print("wfn_restart = ", wfn_restart,
               ": SCF_GUESS is not managed by the sampler",
               " - wfn files are not reused.")
+    
+    # Print the settings for cleaning up wfn-files
+    if args.cp2k_rm_restart_wfn:
+        print("cp2k_rm_restart_wfn: wfn-files are automatically removed after they have been used.")
+    
+    if args.cp2k_keep_wfn_bak:
+        print("cp2k_keep_wfn_bak: Removal of *-RESTART.wfn.bak-n files disabled.")
 
     calc_method = cp2k_calc
     #energies = sampler.calculate_energies(grid_points=supercell_cart_grid,

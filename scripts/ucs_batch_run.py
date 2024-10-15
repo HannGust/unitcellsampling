@@ -271,6 +271,10 @@ parser.add_argument('--cp2k_print_level', type=str, action='store', default="MED
 
 parser.add_argument('--cp2k_shell_reset_freq', type=int, action='store', default=500, help="Specify the frequency with which the CP2K-shell is re-instantiated, i.e. reset. If this frequency is N, the cp2k shell is killed and restarted every N:th calculation. This is too avoid the logical unit error arising from too many io-units assigned in the cp2k fortran source code. Too disable this, either set it to a higher number than the total number of calculations, or set it to a value <=0. In the latter case the program will automatically set it to a high value so that no reset is performed. Default: 500")
 
+parser.add_argument('--cp2k_rm_restart_wfn', action='store_true', help="Toggles removal of the cp2k RESTART.wfn files, directly or after they have been reused if cp2k_wfn_mode is on.")
+
+parser.add_argument('--cp2k_keep_wfn_bak', action='store_true', help="Turns off automatic removal of the cp2k RESTART.wfn.bak-N files after each calculation.")
+
 # CP2K command argument - REDUNDANT FOR NOW
 #parser.add_argument('--cp2k_cmd', '--cp2k-command', type=str, action='store', default=default_cp2k_cmd, help="Specify the CP2K-command that is used in the ASE-CP2K calculator interface to start and run the CP2K program. Default: ")
 # Minimum-image-convention cutoff argument
@@ -797,6 +801,13 @@ if method in cp2k_dft_methods.keys() and method == "cp2k_calculator_from_input":
 
     batch_log.write("Shell reset frequency:"+str(args.cp2k_shell_reset_freq)+"\n")
 
+    if args.cp2k_rm_restart_wfn:
+        batch_log.write("cp2k_rm_restart_wfn: wfn-files are automatically removed after they have been used.\n")
+    
+    if args.cp2k_keep_wfn_bak:
+        batch_log.write("cp2k_keep_wfn_bak: Removal of *-RESTART.wfn.bak-n files disabled.\n")
+
+
 batch_log.write("===================== END OF PREPROCESSING OUTPUT =============================\n\n\n")
 
 
@@ -1036,7 +1047,13 @@ if args.cp2k_shell_reset_freq is not None and "--cp2k_shell_reset_freq" in full_
     args_to_pass.extend(["--cp2k_shell_reset_freq", str(args.cp2k_shell_reset_freq)])
     batch_log.write("Passing cp2k_shell_reset_freq.\n")
 
+if args.cp2k_rm_restart_wfn:
+    args_to_pass.extend(["--cp2k_rm_restart_wfn"])
+    batch_log.write("Passing cp2k_rm_restart_wfn flag.\n")
 
+if args.cp2k_keep_wfn_bak:
+    args_to_pass.extend(["--cp2k_keep_wfn_bak"])
+    batch_log.write("Passing cp2k_keep_wfn_bak flag.\n")
 
 formatted_args_to_pass = " ".join(args_to_pass)
 batch_log.write("\n")
