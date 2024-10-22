@@ -225,6 +225,43 @@ def get_symmetry_from_batch_log(log_txt):
         
     return symmetry_setting, spgrp
 
+
+# NOTE: Repeat charge reader. Added as component of construction of REPEAT grids.
+def read_repeat_charge(file, atom="Li"):
+    """Reader of RESP/REPEAT charges for a given atom type from output from CP2K."""
+    if isinstance(atom, ase.Atom):
+        atom = str(atom.symbol)
+    
+    if not os.path.exists(file):
+        raise FileNotFoundError("ERROR: File not found.")
+    
+    if not os.path.isfile(file):
+        raise FileExistsError("ERROR: File is not an ordinary file.")
+
+    pattern = " *RESP *[0-9]+ *{} *(-?[0-9.]+)".format(atom)
+    with open(file, 'r') as f:
+        content = f.read()
+    
+    m = re.search(pattern, content)
+    assert len(m.groups()) == 1, "Unexpected number or matches found - this case is not implemented yet. Can only handle a single group apart from whole match. See match groups: {}".format(str(m.groups()))
+    
+    repeat_charge = float(m.group(1))
+    
+    return repeat_charge
+
+# NOTE: Compiles arrays for a single batch, of the REPEAT charges.
+def compile_batch_repeat_charge_array(batchdir, numfiles:int, atom="Li", label="cp2k", ext="-RESP_CHARGES.resp"):
+    """Compiles a list of RESP/REPEAT charges for the given atom type, from all the output from a single batch."""
+    repeat_charge_list = []
+    for idx in range(1,numfiles+1):
+        fname = os.path.join(batchdir, "calc", label + "_" + str(idx) + ext)
+        assert os.path.exists(fname), "ERROR: file {} does not exist.".format(str(fname))
+        repeat_charge_list.append(read_repeat_charge(fname, atom=atom))
+
+    return np.array(repeat_charge_list)
+
+
+
 ## Pseudocode to construct the grid:
 # read batch_run log file, get relevant options (symmetry, grid size)
 # Initialize an empty grid
@@ -550,6 +587,125 @@ class UCSBatchAnalyzer():
             raise ValueError("ERROR: There is no assembled grid to write. Compile a grid first.")
         with open(self.cube_file, 'w') as cube_file:
             write_cube(cube_file, self.atoms, data=self.grid)
+
+
+
+    # NOTE: New method for compiling REPEAT charge grids from cp2k output
+    def compile_repeat_charge_grid(self, atom="Li", label="cp2k", ext="-RESP_CHARGES.resp", fill_value=0.0, check_symmetry_from_structure=True):
+        """From a batch grid sampling, compiles a RESP/REPEAT charge grid, for the given atom,
+        from output from all batches. Currently only supports output from CP2K. Also only supports 
+        charges for singly occuring atoms (e.g. like the sampling atom).
+        
+        This is built on the basis of the compile_grid method."""
+        
+        # Get necessary info from logfile
+        grid_shape = self.grid_shape_from_log()
+        use_symmetry, spgrp = self.symmetry_from_log()
+        # Determine spacegroup from structure, and
+        # assert spacegroups detemrined this way and read from log
+        # are identical, if using symmetry.
+        # Added possibility to relax the precision when determining
+        # the spacegroup a little if necessary
+        symprec = 10**-5
+        max_symprec = 10**-3
+        
+        # NOTE: Have changed so that the correct function is called.
+        # NOTE: Added so that symprec is passed in the relevant new functions in the symmetry module.
+        # NOTE: Added effect of the check_symmetry_from_structure argument
+        if use_symmetry and check_symmetry_from_structure:
+            print("Performing extra sanity check of symmetry: Comparing spacegroup derived from structure with that in logfile...")
+            while True:
+                #spgrp_from_atoms = get_spacegroup(self.atoms, symprec=symprec) # This is old spacegroup setting! DEPRECATE!
+                cell_tuple, spgrp_from_atoms, sym_dataset  = symmetry.match_atoms_with_gemmi_spacegroup(self.atoms,
+                                                                                                        clean=True,
+                                                                                                        wrap=True,
+                                                                                                        symprec=symprec) # NEW!
+                try:
+                    assert spgrp == spgrp_from_atoms, "ERROR: Spacegroups based on log vs. structure are not the same!!!"
+                except AssertionError as ass_err:
+                    if symprec < max_symprec:
+                        print("WARNING: Spacegroup mismatch occurred at symmetry precision: ", symprec)
+                        symprec = 10.0*symprec
+                        continue
+                    else:
+                        raise AssertionError("Spacegroup mismatch at maximum symprec tolerance ", symprec) from ass_err
+                else:
+                    print("Spacegroup read from log vs. determined from structure equal at symprec: ", symprec)
+                    break
+        elif use_symmetry and not check_symmetry_from_structure:
+            print("check_symmetry_from_structure = False: Skipping symmetry sanity check. Spacegroup info is only read from logfile.")
+        
+        # Check indices
+        idx_arrs = self.collect_index_arrays()
+        self.sanity_check_indices()
+        # Get list of batch directories
+        batch_dirs = self.get_list_of_batch_dirs()
+        
+        # Initialize grid
+        charge_grid = np.full(grid_shape, -np.inf)
+        
+        # Loop over batch_dirs, collect things from each in turn
+        for bch in batch_dirs:
+            # Read corresponding batch indices
+            indices_file = os.path.join(bch, "indices.npy")
+            if os.path.exists(indices_file) and os.path.isfile(indices_file):
+                batch_indices = read_indices(indices_file)
+            else:
+                indices_file = os.path.join(bch, "indices.txt")
+                batch_indices = read_indices(indices_file)
+            
+            # Read batch charges:
+            numfiles = batch_indices.shape[0]
+            batch_charges = compile_batch_repeat_charge_array(bch, numfiles, atom=atom, label=label, ext=ext)
+            
+            # Fill grid with the charges at the indices:
+            charge_grid = fill_grid_indices(charge_grid, batch_charges, batch_indices)
+    
+        # Then, we have filled the grid with all batches.
+        # Now it remains to symmetrize and fill.
+            
+        # symmetrize if necessary:
+        if use_symmetry:
+            #bool_grid = gemmi.Int8Grid(*grid_shape)
+            float32_charge_grid = charge_grid.astype(np.float32)
+            np.nan_to_num(float32_charge_grid, copy=False)
+            gemmi_float_charge_grid = gemmi.FloatGrid(float32_charge_grid)
+            #gemmi_float_grid.spacegroup = gemmi.find_spacegroup_by_number(spgrp_from_atoms.no) # OLD! WRONG! Deprecate this!
+            #gemmi_float_grid.spacegroup = spgrp_from_atoms # NEW!
+            gemmi_float_charge_grid.spacegroup = spgrp # NEW - here the spacegroup from log is used, as should be the case. spgrp from atoms should be the same, but now with new option it might not be determined.
+            gemmi_float_charge_grid.symmetrize_max()
+            charge_grid = np.array(gemmi_float_charge_grid.array, dtype=np.float32)
+    
+            # NOTE: Unclear what fill value to use for charged grid, by default.
+            init_fill_value = np.nan_to_num(np.array(-np.inf, dtype=np.float32)) # 
+            # We have to simply assume that the charge in the points that are not computed are the value init_fill e.g. initially instantiated value
+            charge_grid[np.isclose(charge_grid, init_fill_value)] = fill_value
+        else:
+            init_fill_value = np.nan_to_num(-np.inf)
+        
+        # Fill the remaining unsampled points:
+        np.nan_to_num(charge_grid, copy=False, nan=fill_value, neginf=fill_value)
+    
+        self.charge_grid = charge_grid
+        return self.charge_grid
+
+
+    def write_repeat_charge_grid(self, path=None):
+        """Writes the compiled REPEAT charge grid to a cube file."""
+        if self.charge_grid is None:
+            raise ValueError("ERROR: There is no assembled charge grid to write. Compile a grid first.")
+        default_charge_cube_name = "REPEAT_charge_grid.cube"
+        if path and os.isdir(path):
+            charge_cubefile = os.path.join(path, default_charge_cube_name)
+        elif path and os.isfile(path):
+            charge_cubefile = path
+        elif not path:
+            charge_cubefile = os.path.join(self.work_dir, default_charge_cube_name)
+        else:
+            raise FileNotFoundError("Path seems to exists but is neither file nor directory.")
+
+        with open(charge_cubefile, 'w') as cube_file:
+            write_cube(cube_file, self.atoms, data=self.charge_grid)
 
 
 
