@@ -27,7 +27,8 @@ from unitcellsampling import autocreated_methods # This is better
 from unitcellsampling import autocreated_methods_structures_mcloud_rest_WO_duplabels_nolog_nosubdircalc 
 
 # predefined by Ben
-from unitcellsampling.energy_calculator import cp2k_dft, Li13Si4_test
+from unitcellsampling.energy_calculator import cp2k_dft, Li13Si4_test, only_Li_lammps_ewald_uff
+
 
 # New cp2k dft methods and wrappers
 from unitcellsampling import cp2k_calculators
@@ -98,6 +99,9 @@ method_list.extend(automethods.keys())
 method_list.extend(dft_methods.keys())
 
 method_list.extend(cp2k_dft_methods.keys())
+
+# NOTE: TEST
+method_list.extend(["only_Li"])
 
 # TODO: Remove preprocessing arguments: --nosym, --vdw, --mic-cutoff, --ra, --sg, --guc, --midvox, --conv
 # Additionally, remove the following arguments: --wfn, --space, --grid, --name
@@ -393,6 +397,9 @@ elif method in cp2k_dft_methods.keys() and method == "cp2k_calculator_from_input
 # the Li13Si4 structure.
 elif method == "Li13Si4_test":
     calc_method = Li13Si4_test
+
+elif method == "only_Li":
+    calc_method = only_Li_lammps_ewald_uff
 
 else:
     print("No default method defined yet.")
