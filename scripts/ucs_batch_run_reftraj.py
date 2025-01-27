@@ -95,7 +95,7 @@ from unitcellsampling import autocreated_methods # This is better
 # Methods for 1075 of the structures in the rest of the dataset:
 from unitcellsampling import autocreated_methods_structures_mcloud_rest_WO_duplabels_nolog_nosubdircalc 
 
-from unitcellsampling.energy_calculator import cp2k_dft, Li13Si4_test, LTA_Na_class
+from unitcellsampling.energy_calculator import cp2k_dft, Li13Si4_test #, LTA_Na_class
 
 # New cp2k dft methods and wrappers
 from unitcellsampling import cp2k_calculators
