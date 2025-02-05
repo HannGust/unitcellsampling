@@ -404,7 +404,7 @@ else:
     unitcell = init_unitcell
 
 if use_sym:
-    if args.sg:
+    if args.sg is not None:
         # TODO: Change so that this grabs the spacegroup entry from the gemmi-table. -> DONE BUT TEST? AND UPDATE THE CLI DOCS
         # Grab the desired entry from the gemmi table. Note indexation! It is the pythonic index 
         spacegroup = list(gemmi.spacegroup_table_itb())[args.sg]
@@ -649,8 +649,9 @@ batch_log.write("supercell from uc cell: " + str(supercell_from_unitcell_wo_ions
 batch_log.write("\n")
 # NOTE: Printing of the new spacegroup information has been updated (in prev. update of batch analzer).
 # NOTE: Added debug printing/comparison of old spacegroup determination/information prior to update, and fixed logic, i.e. only when using symmetry
+# NOTE: This is only relevant for automatic spacegroup matching
 ### THIS IS PRINTING OF OLD SYMMETRY INFORMATION: ###
-if use_sym:
+if use_sym and (args.sg is None):
     batch_log.write("\n")
     batch_log.write("DEBUG: Printing old, deprecated symmetry information below.\n")
     batch_log.write("DEBUG (OLD SYMMETRY INFO): OLD SPACEGROUP, UNITCELL, number and name: " + str(_OLD_spacegroup.no) + ", " + str(_OLD_spacegroup.symbol) + " \n") # OLD, DEPRECATE!
