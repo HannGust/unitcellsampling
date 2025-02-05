@@ -388,7 +388,7 @@ init_unitcell = input_unitcell.copy()
 # is used or if conv argument is specified
 # This is a bit convoluted as we may be able to use ase
 # directly I have realized now...
-if use_sym or args.conv:
+if args.conv:
     if not symmetry.is_conventional_cell(init_unitcell):
         sg_analyzer = SpacegroupAnalyzer(AseAtomsAdaptor.get_structure(init_unitcell)) 
         conv_cell = sg_analyzer.get_conventional_standard_structure()
