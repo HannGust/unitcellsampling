@@ -551,7 +551,7 @@ batch_log.write("vdW cutoff factor: " + str(args.vdw) + "\n")
 
 if use_sym:
     batch_log.write("Symmetry is used.\n")
-if use_sym or args.conv:
+if args.conv:
     batch_log.write("Determined conventional cell for sampling.\n")
 if args.midvox:
     batch_log.write("Midvox sampling enabled.\n")
