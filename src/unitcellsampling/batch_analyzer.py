@@ -178,7 +178,7 @@ def get_symmetry_from_batch_log(log_txt):
         spgrp_sc_match = re.search("Spacegroup, supercell: +table index +([0-9]+) +; +<gemmi.SpaceGroup\(\"(.*)\"\)>", log_txt)
         if spgrp_sc_match is None:
             spgrp_sc_match = re.search("Spacegroup, supercell: +table index NONE +; +Not found\.", log_txt)
-            assert spgrp_sc_match is not None and spgrp_sc_match.group(0) == "Spacegroup, supercell:  table index NONE ; Not found.", "ERROR: Supercell spacegroup information invalid."
+            assert spgrp_sc_match is not None and spgrp_sc_match.group(0) == "Spacegroup, supercell: table index NONE ; Not found.", "ERROR: Supercell spacegroup information invalid."
             spgrp_sc_idx = None 
             spgrp_sc_name = None
             print("WARNING: Supercell spacegroup information not available. Double-check results!")
@@ -190,10 +190,22 @@ def get_symmetry_from_batch_log(log_txt):
         spgrp_uc_idx = int(spgrp_uc_match.group(1))
         spgrp_uc_name = spgrp_uc_match.group(2)
                 
+        # NOTE: Updated this to print a warning instead of producing assertion error. 
+        # It is not necessarily indicative of a fatal error, it might only be symprec issue.
+        # Also, if manually specifying the spacegroup, it could be a 
+        # hassle as the determined spacegroups might differ due to this.
         if spgrp_sc_idx is not None:
-            assert spgrp_sc_idx == spgrp_uc_idx, "Spacegroup indices not consistent!"
+            try:
+                assert spgrp_sc_idx == spgrp_uc_idx, "Spacegroup indices not consistent!"
+            except AssertionError:
+                print("WARNING: Spacegroup indices for supercell and unitcell are not the same.")
+
         if spgrp_sc_name is not None:
-            assert spgrp_sc_name == spgrp_uc_name, "Spacegroup names not consistent!"
+            try:
+                assert spgrp_sc_name == spgrp_uc_name, "Spacegroup names not consistent!"
+            except AssertionError:
+                print("WARNING: Spacegroup names for supercell and unitcell are not the same.")
+
 
         gemmi_spgrp_table = list(gemmi.spacegroup_table_itb()) 
         
