@@ -80,6 +80,7 @@ from unitcellsampling import sample
 from unitcellsampling import symmetry
 import ase.io
 import ase
+import ase.units
 from ase.spacegroup import get_spacegroup
 import gemmi
 
@@ -912,18 +913,19 @@ if use_sym:
 
     # NOTE: Printing symmetry cube here:
     # print symmetry information
+    Angstrom2Bohr = (1.0/ase.units.Bohr) # Conversion factor bohr/Å
     sym_name = calc_name+'_symInfo'
     cube_filename = ".".join((sym_name, 'cube'))
     #with open(cube_filename, 'w') as fp:
     #    write_cube(fp, unitcell, data=np.array(symID_grid))
     data = np.array(symID_grid, dtype='int')
     symmetry_cube = open(cube_filename,'w')
-    symmetry_cube.write('symmetry information file, units: Angstrom?\n')
+    symmetry_cube.write('symmetry information file, units: Bohr\n')
     symmetry_cube.write('--------------------------------\n')
     symmetry_cube.write(''.join(["{:d}".format(1),' ','0.000000 0.000000 0.000000\n']))
-    symmetry_cube.write(''.join(["{:d}".format(nx),' ',"{:1.6f}".format(supercell_from_unitcell_wo_ions.cell[0][0]/nx),' ',"{:1.6f}".format(supercell_from_unitcell_wo_ions.cell[0][1]/nx),' ',"{:1.6f}".format(supercell_from_unitcell_wo_ions.cell[0][2]/nx),'\n']))
-    symmetry_cube.write(''.join(["{:d}".format(ny),' ',"{:1.6f}".format(supercell_from_unitcell_wo_ions.cell[1][0]/ny),' ',"{:1.6f}".format(supercell_from_unitcell_wo_ions.cell[1][1]/ny),' ',"{:1.6f}".format(supercell_from_unitcell_wo_ions.cell[1][2]/ny),'\n']))
-    symmetry_cube.write(''.join(["{:d}".format(nz),' ',"{:1.6f}".format(supercell_from_unitcell_wo_ions.cell[2][0]/nz),' ',"{:1.6f}".format(supercell_from_unitcell_wo_ions.cell[2][1]/nz),' ',"{:1.6f}".format(supercell_from_unitcell_wo_ions.cell[2][2]/nz),'\n']))
+    symmetry_cube.write(''.join(["{:d}".format(nx),' ',"{:1.6f}".format(Angstrom2Bohr * supercell_from_unitcell_wo_ions.cell[0][0]/nx),' ',"{:1.6f}".format(Angstrom2Bohr * supercell_from_unitcell_wo_ions.cell[0][1]/nx),' ',"{:1.6f}".format(Angstrom2Bohr * supercell_from_unitcell_wo_ions.cell[0][2]/nx),'\n']))
+    symmetry_cube.write(''.join(["{:d}".format(ny),' ',"{:1.6f}".format(Angstrom2Bohr * supercell_from_unitcell_wo_ions.cell[1][0]/ny),' ',"{:1.6f}".format(Angstrom2Bohr * supercell_from_unitcell_wo_ions.cell[1][1]/ny),' ',"{:1.6f}".format(Angstrom2Bohr * supercell_from_unitcell_wo_ions.cell[1][2]/ny),'\n']))
+    symmetry_cube.write(''.join(["{:d}".format(nz),' ',"{:1.6f}".format(Angstrom2Bohr * supercell_from_unitcell_wo_ions.cell[2][0]/nz),' ',"{:1.6f}".format(Angstrom2Bohr * supercell_from_unitcell_wo_ions.cell[2][1]/nz),' ',"{:1.6f}".format(Angstrom2Bohr * supercell_from_unitcell_wo_ions.cell[2][2]/nz),'\n']))
     for i in range(nx):
         for j in range(ny):
             for k in range(nz):
