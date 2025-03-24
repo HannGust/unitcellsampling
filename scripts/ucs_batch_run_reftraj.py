@@ -931,6 +931,15 @@ else:
     n_exploited_symmetry = 0
     n_calculations_total = n_included_total
 
+    # NOTE: New. Generating symmetry cubes. Not so interesting in this case, since no symmetry.
+    # But still useful.
+    # ALTERNATIVE - cleaner way than looping:
+    symID_grid = np.zeros(nx*ny*nz, dtype="int")
+    symID_grid[unitcell_included] = np.arange(1, n_calculations_total+1)
+    symID_grid = symID_grid.reshape(nx,ny,nz)
+    symmetry.write_symmetry_cube(calc_name, symID_grid, supercell_from_unitcell_wo_ions, nx, ny, nz)
+    
+
 # Info print to batch-log:
 batch_log.write("Total grid points: "+str(total_points)+"\n")
 batch_log.write("Points included by total spherical cutoffs: "+str(n_included_total)+"\n")
