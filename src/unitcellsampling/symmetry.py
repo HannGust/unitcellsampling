@@ -15,6 +15,7 @@ import copy
 
 import ase.io
 import ase.spacegroup
+import ase.units
 
 from pymatgen.core import Structure, Lattice
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
@@ -26,6 +27,31 @@ from pymatgen.io.ase import AseAtomsAdaptor
 # compatible with the spacegroup 
 
 # TODO Use the new grid shape compatibility functions to write a new one that returns the closest grid shape??
+
+def write_symmetry_cube(calc_name, symID_grid, sampling_super_cell, nx, ny, nz):
+    """Writes a symmetry ID grid to a cube file, internally refered to a symmetry cube file,
+    containing information about the grid, in particular which symmetry equivalence class
+    each point belong to and which points are sampled or excluded from sampling.
+    Note: Assumes that the cell information given in sampling_super_cell, is in units Å."""
+    
+    Angstrom2Bohr = (1.0/ase.units.Bohr) # Conversion factor bohr/Å
+    sym_name = calc_name+'_symInfo'
+    cube_filename = ".".join((sym_name, 'cube'))
+
+    data = np.array(symID_grid, dtype='int')
+    symmetry_cube = open(cube_filename,'w')
+    symmetry_cube.write('symmetry information file, units: Bohr\n')
+    symmetry_cube.write('--------------------------------\n')
+    symmetry_cube.write(''.join(["{:d}".format(1),' ','0.000000 0.000000 0.000000\n']))
+    symmetry_cube.write(''.join(["{:d}".format(nx),' ',"{:1.6f}".format(Angstrom2Bohr * sampling_super_cell.cell[0][0]/nx),' ',"{:1.6f}".format(Angstrom2Bohr * sampling_super_cell.cell[0][1]/nx),' ',"{:1.6f}".format(Angstrom2Bohr * sampling_super_cell.cell[0][2]/nx),'\n']))
+    symmetry_cube.write(''.join(["{:d}".format(ny),' ',"{:1.6f}".format(Angstrom2Bohr * sampling_super_cell.cell[1][0]/ny),' ',"{:1.6f}".format(Angstrom2Bohr * sampling_super_cell.cell[1][1]/ny),' ',"{:1.6f}".format(Angstrom2Bohr * sampling_super_cell.cell[1][2]/ny),'\n']))
+    symmetry_cube.write(''.join(["{:d}".format(nz),' ',"{:1.6f}".format(Angstrom2Bohr * sampling_super_cell.cell[2][0]/nz),' ',"{:1.6f}".format(Angstrom2Bohr * sampling_super_cell.cell[2][1]/nz),' ',"{:1.6f}".format(Angstrom2Bohr * sampling_super_cell.cell[2][2]/nz),'\n']))
+    for i in range(nx):
+        for j in range(ny):
+            for k in range(nz):
+                symmetry_cube.write(''.join(["{:d}".format(data[i,j,k]),'\n']))
+    symmetry_cube.close()
+
 
 def is_shape_compatible(shape, gemmigrid):
     """Tests whether the grid shape and gemmi grid (with associated spacegroup)

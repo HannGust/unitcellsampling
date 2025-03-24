@@ -548,7 +548,7 @@ batch_log.write("vdW cutoff factor: " + str(args.vdw) + "\n")
 
 if use_sym:
     batch_log.write("Symmetry is used.\n")
-if use_sym or args.conv:
+if args.conv:
     batch_log.write("Determined conventional cell for sampling.\n")
 if args.midvox:
     batch_log.write("Midvox sampling enabled.\n")
@@ -905,32 +905,17 @@ if use_sym:
 
         # NOTE: Added for constructing/printing of symmetry cube
         symID_grid.set_value(*grid_point_index_new, n_calculations_total)
-        symID_grid.symmetrize_max()
     
+    # NOTE: Moved line below, symmetrization of symmetry cube, to outside loop, as it is not needed to be inside and it is faster
+    symID_grid.symmetrize_max()
     indices_list = np.array(indices_list, dtype=int)
     cart_grid_coord_list = np.array(cart_grid_coord_list, dtype=np.float64)
     frac_grid_coord_list = np.array(frac_grid_coord_list, dtype=np.float64)
 
     # NOTE: Printing symmetry cube here:
+    # NOTE: Now this is in a function in the symmetry module
     # print symmetry information
-    Angstrom2Bohr = (1.0/ase.units.Bohr) # Conversion factor bohr/Å
-    sym_name = calc_name+'_symInfo'
-    cube_filename = ".".join((sym_name, 'cube'))
-    #with open(cube_filename, 'w') as fp:
-    #    write_cube(fp, unitcell, data=np.array(symID_grid))
-    data = np.array(symID_grid, dtype='int')
-    symmetry_cube = open(cube_filename,'w')
-    symmetry_cube.write('symmetry information file, units: Bohr\n')
-    symmetry_cube.write('--------------------------------\n')
-    symmetry_cube.write(''.join(["{:d}".format(1),' ','0.000000 0.000000 0.000000\n']))
-    symmetry_cube.write(''.join(["{:d}".format(nx),' ',"{:1.6f}".format(Angstrom2Bohr * supercell_from_unitcell_wo_ions.cell[0][0]/nx),' ',"{:1.6f}".format(Angstrom2Bohr * supercell_from_unitcell_wo_ions.cell[0][1]/nx),' ',"{:1.6f}".format(Angstrom2Bohr * supercell_from_unitcell_wo_ions.cell[0][2]/nx),'\n']))
-    symmetry_cube.write(''.join(["{:d}".format(ny),' ',"{:1.6f}".format(Angstrom2Bohr * supercell_from_unitcell_wo_ions.cell[1][0]/ny),' ',"{:1.6f}".format(Angstrom2Bohr * supercell_from_unitcell_wo_ions.cell[1][1]/ny),' ',"{:1.6f}".format(Angstrom2Bohr * supercell_from_unitcell_wo_ions.cell[1][2]/ny),'\n']))
-    symmetry_cube.write(''.join(["{:d}".format(nz),' ',"{:1.6f}".format(Angstrom2Bohr * supercell_from_unitcell_wo_ions.cell[2][0]/nz),' ',"{:1.6f}".format(Angstrom2Bohr * supercell_from_unitcell_wo_ions.cell[2][1]/nz),' ',"{:1.6f}".format(Angstrom2Bohr * supercell_from_unitcell_wo_ions.cell[2][2]/nz),'\n']))
-    for i in range(nx):
-        for j in range(ny):
-            for k in range(nz):
-                symmetry_cube.write(''.join(["{:d}".format(data[i,j,k]),'\n']))
-    symmetry_cube.close()
+    symmetry.write_symmetry_cube(calc_name, symID_grid, supercell_from_unitcell_wo_ions, nx, ny, nz)
 
 else:
     # Here only the previous vdw exclusion is performed
