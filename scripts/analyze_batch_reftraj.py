@@ -143,17 +143,27 @@ def main():
         print("Cube file written.")
 
         
-def writeCube(filename,data,Nx,Ny,Nz,dx,dy,dz,Na,a_list):
-    AngtoBohr = 1.8897161646320724
+def writeCube(filename,data,Nx,Ny,Nz,dx,dy,dz,Na,a_list,cell_vec_unit="Bohr",atom_coord_unit="Ang"):
+    if cell_vec_unit == "Bohr":
+        CellUnit2Bohr = 1.0 # Bohr to Bohr
+    elif cell_vec_unit == "Ang":
+        CellUnit2Bohr = 1.8897161646320724 # Ang to Bohr
+
+    if atom_coord_unit == "Bohr":
+        CoordUnit2Bohr = 1.0 # Bohr to Bohr
+    elif atom_coord_unit == "Ang":
+        CoordUnit2Bohr = 1.8897161646320724 # Ang to Bohr
+
+
     f = open(filename,'w')
-    f.write('Energy grid obtained via a classical potential in lammps, Energy units: eV, length units: Bohr\n')
+    f.write('Energy grid, Energy units: eV, length units: Bohr\n')
     f.write('--------------------------------\n')
     f.write(''.join(["{:d}".format(Na),' ','0.000000 0.000000 0.000000\n']))
-    f.write(''.join(["{:d}".format(Nx),' ',"{:1.6f}".format(AngtoBohr*dx[0]),' ',"{:1.6f}".format(AngtoBohr*dx[1]),' ',"{:1.6f}".format(AngtoBohr*dx[2]),'\n']))
-    f.write(''.join(["{:d}".format(Ny),' ',"{:1.6f}".format(AngtoBohr*dy[0]),' ',"{:1.6f}".format(AngtoBohr*dy[1]),' ',"{:1.6f}".format(AngtoBohr*dy[2]),'\n']))
-    f.write(''.join(["{:d}".format(Nz),' ',"{:1.6f}".format(AngtoBohr*dz[0]),' ',"{:1.6f}".format(AngtoBohr*dz[1]),' ',"{:1.6f}".format(AngtoBohr*dz[2]),'\n']))
+    f.write(''.join(["{:d}".format(Nx),' ',"{:1.6f}".format(CellUnit2Bohr*dx[0]),' ',"{:1.6f}".format(CellUnit2Bohr*dx[1]),' ',"{:1.6f}".format(CellUnit2Bohr*dx[2]),'\n']))
+    f.write(''.join(["{:d}".format(Ny),' ',"{:1.6f}".format(CellUnit2Bohr*dy[0]),' ',"{:1.6f}".format(CellUnit2Bohr*dy[1]),' ',"{:1.6f}".format(CellUnit2Bohr*dy[2]),'\n']))
+    f.write(''.join(["{:d}".format(Nz),' ',"{:1.6f}".format(CellUnit2Bohr*dz[0]),' ',"{:1.6f}".format(CellUnit2Bohr*dz[1]),' ',"{:1.6f}".format(CellUnit2Bohr*dz[2]),'\n']))
     for i in range(Na):
-        f.write(''.join(["{:d}".format(int(a_list[i][0])),' ',"{:.6f}".format(a_list[i][1]),' ',"{:.6f}".format(AngtoBohr*a_list[i][2]),' ',"{:.6f}".format(AngtoBohr*a_list[i][3]),' ',"{:.6f}".format(AngtoBohr*a_list[i][4]),'\n']))
+        f.write(''.join(["{:d}".format(int(a_list[i][0])),' ',"{:.6f}".format(a_list[i][1]),' ',"{:.6f}".format(CoordUnit2Bohr*a_list[i][2]),' ',"{:.6f}".format(CoordUnit2Bohr*a_list[i][3]),' ',"{:.6f}".format(CoordUnit2Bohr*a_list[i][4]),'\n']))
     
     for val in data:
         f.write(''.join(["{:.6f}".format(val),'\n']))
