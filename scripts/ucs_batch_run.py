@@ -403,7 +403,7 @@ if args.ra:
 else:
     unitcell = init_unitcell
 
-# WIP: NOTE: Converting the unit cell to a standardized, lower triangular format which is obtained when e.g. cifs are read
+# NOTE: Converting the unit cell to a standardized, lower triangular format which is obtained when e.g. cifs are read
 init_cell = unitcell.cell.copy()
 lower_triang_cell, lower_triang_transform_1 = init_cell.standard_form()
 unitcell.set_cell(lower_triang_cell, scale_atoms=True)
