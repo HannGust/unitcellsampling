@@ -403,6 +403,12 @@ if args.ra:
 else:
     unitcell = init_unitcell
 
+# WIP: NOTE: Converting the unit cell to a standardized, lower triangular format which is obtained when e.g. cifs are read
+init_cell = unitcell.cell.copy()
+lower_triang_cell, lower_triang_transform_1 = init_cell.standard_form()
+unitcell.set_cell(lower_triang_cell, scale_atoms=True)
+
+
 if use_sym:
     if args.sg is not None:
         # TODO: Change so that this grabs the spacegroup entry from the gemmi-table. -> DONE BUT TEST? AND UPDATE THE CLI DOCS
@@ -422,9 +428,17 @@ if use_sym:
                                                                                       spglib_standardize=args.sym_spglib_std,
                                                                                       change_basis=args.sym_change_basis)
         unitcell = spgrp_matching_unitcell
+
+        # NOTE: Asserting that the unit cell is in a lower triangular format, 
+        # which is obtained when e.g. cifs are read, also after symmetry determination.
+        init_sym_cell = unitcell.cell.copy()
+        lower_triang_sym_cell, lower_triang_transform_2 = init_sym_cell.standard_form()
+        assert np.allclose(lower_triang_sym_cell, init_sym_cell), "ERROR: Symmetry/spacegroup compatible cell not in lower triangular form:\n{}\n{}\n{}.".format([*init_sym_cell])
+
 else:
     # If symmetry should not be used, set spacegroup to None
     spacegroup = None
+
 ## Set the number of points in the grid in each dimension (or equivalently, the mesh size)
 ## and if symmetry is used, make sure grid and spacegroup are compatible
 # TODO: If symmetry is used, check/determine nearest shape that is compatible with spacegroup -> DONE, see todo below
@@ -536,6 +550,9 @@ batch_log.write("Printing output from UCS preprocessing (similar to grid_gen_scr
 batch_log.write("======================================================================\n")
 log_raw_input(batch_log, args)
 batch_log.write("\n\n\n")
+batch_log.write("Input structure\n")
+batch_log.write("Formula: {}\n".format(input_unitcell.get_chemical_formula()))
+batch_log.write("\n".join(["Unit cell:", *[str(i) for i in input_unitcell.cell], "\n"]))
 if args.ra:
     batch_log.write("Removed sampling atoms " + str(atom) + " from structure.\n")
 
@@ -555,6 +572,18 @@ if args.conv:
     batch_log.write("Determined conventional cell for sampling.\n")
 if args.midvox:
     batch_log.write("Midvox sampling enabled.\n")
+
+batch_log.write("Converted unit cell to lower triangular form\n")
+batch_log.write("\n".join(["Cell before:", *[str(i) for i in init_cell], ""]))
+batch_log.write("\n".join(["Cell after:", *[str(i) for i in lower_triang_cell], ""]))
+batch_log.write("\n".join(["Transformation matrix:", *[str(i) for i in lower_triang_transform_1], "\n"]))
+
+if use_sym:
+    batch_log.write("Checking that symmetry matched unit cell is upper triangular: {}\n".format(np.allclose(lower_triang_sym_cell,
+                                                                                                            init_sym_cell)))
+    batch_log.write("\n".join(["Sym Cell:", *[str(i) for i in init_sym_cell], "\n"]))
+    #batch_log.write("\n".join(["Sym Cell After:", *lower_triang_sym_cell, ""]))
+    #batch_log.write("\n".join(["Transformation matrix:", *lower_triang_transform_2, "\n"]))")
 
 
 
