@@ -18,16 +18,17 @@ os.chdir(pathlib.Path(__file__).parent.resolve())
 
 import argparse
 
-#
+
 def init_batch_analysis_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--directory", action="store", type=str, default=".", help="The path to the batch run main working directory, of the batch run to be analyzed.")
     parser.add_argument("-g", "--grid", action="store_true", help="Compile an energy grid to from the individual batch results of the batch run, and write it to a cube file.")
+    parser.add_argument("--rm-files", action="store_true", help="Toggles removal of mostly unneccessary or redundant files: *.restart, *.RESTART.wfn, cp2k.out, and initial trajectory files.")
     return parser
 #
 
 def args2batch_analysis_options(args):
-    """Converts parsed arguments into dictionary of options for 
+    """Converts parsed arguments into dictionary of options for batch analysis. 
     """
     opt_dict = {"batch_wd":args.directory,
                 "grid":args.grid}
@@ -63,22 +64,24 @@ def main():
         energies_i, time_info_i = read_cp2k_energy_file(energy_file)
         energies.extend(energies_i)
         time_info.extend(time_info_i)
-	
-	    # delete unnecessary files
-        if os.path.isfile(current_batch_dir+"Batch_reftraj-1.restart"):
-            os.remove(current_batch_dir+"Batch_reftraj-1.restart")
-        if os.path.isfile(current_batch_dir+"Batch_reftraj-1.restart.bak-1"):
-            os.remove(current_batch_dir+"Batch_reftraj-1.restart.bak-1")
-        if os.path.isfile(current_batch_dir+"Batch_reftraj-RESTART.wfn"):
-            os.remove(current_batch_dir+"Batch_reftraj-RESTART.wfn")
-        if os.path.isfile(current_batch_dir+"Batch_reftraj-RESTART.wfn.bak-1"):
-            os.remove(current_batch_dir+"Batch_reftraj-RESTART.wfn.bak-1")
-        if os.path.isfile(current_batch_dir+"cp2k.out"):
-            os.remove(current_batch_dir+"cp2k.out")
-        if os.path.isfile(current_batch_dir+"trajectory.xyz"):
-            os.remove(current_batch_dir+"trajectory.xyz")
-#	    if os.path.isfile(current_batch_dir+"Batch_reftraj-pos-1.xyz"):
-#           os.remove(current_batch_dir+"Batch_reftraj-pos-1.xyz")
+
+        if args.rm_files:
+	        # delete unnecessary files
+            print("analyze_batch_reftraj.py: rm_files = {} - Removing unneccesary/redundant files.".format(args.rm_files))
+            if os.path.isfile(current_batch_dir+"Batch_reftraj-1.restart"):
+                os.remove(current_batch_dir+"Batch_reftraj-1.restart")
+            if os.path.isfile(current_batch_dir+"Batch_reftraj-1.restart.bak-1"):
+                os.remove(current_batch_dir+"Batch_reftraj-1.restart.bak-1")
+            if os.path.isfile(current_batch_dir+"Batch_reftraj-RESTART.wfn"):
+                os.remove(current_batch_dir+"Batch_reftraj-RESTART.wfn")
+            if os.path.isfile(current_batch_dir+"Batch_reftraj-RESTART.wfn.bak-1"):
+                os.remove(current_batch_dir+"Batch_reftraj-RESTART.wfn.bak-1")
+            if os.path.isfile(current_batch_dir+"cp2k.out"):
+                os.remove(current_batch_dir+"cp2k.out")
+            if os.path.isfile(current_batch_dir+"trajectory.xyz"):
+                os.remove(current_batch_dir+"trajectory.xyz")
+#	        if os.path.isfile(current_batch_dir+"Batch_reftraj-pos-1.xyz"):
+#               os.remove(current_batch_dir+"Batch_reftraj-pos-1.xyz")
 
         batch_count+=1
         current_batch_dir = options["batch_wd"]+"BATCH"+str(batch_count)+"/"
