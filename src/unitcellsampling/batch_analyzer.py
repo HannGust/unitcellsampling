@@ -146,6 +146,22 @@ def get_grid_shape_from_batch_log(log_txt):
 
     return grid_shape
 
+# NOTE: New - retrieves the sampling supercell size from the log file. 
+# Has been tested, can read the new, final, sampling supercell size that is now printed in the batch log.
+def get_sampling_supercell_size_from_log(log_txt):
+    """Reads the sampling supercell size from a batch log.
+    """
+    supercell_size_pattern="Number of unit cells in sampling supercell: \(([0-9]+), *([0-9]+), *([0-9]+)\)"
+
+    supercell_size_match = re.search(supercell_size_pattern, log_txt)
+
+    if supercell_size_match is None:
+        raise ValueError("Sampling supercell size could not be read from batch log")
+    
+    sampling_supercell_size = tuple(int(supercell_size_match.group(i+1)) for i in range(3))
+
+    return sampling_supercell_size
+
 # TODO: UPDATED THIS TO WORK WITH THE NEW SYMMETRY OUTPUT IN THE UPDATED BATCHER. Updated and cleaned up code from testing
 # spacegroup comparison and validation. This seems to work now!
 def get_symmetry_from_batch_log(log_txt):
@@ -317,19 +333,48 @@ class UCSBatchAnalyzer():
         self.work_dir = None
         self._set_batch_workdir(batch_wd) # This sets self.work_dir
 
+        # Check and retrieve list of BATCH dirs
         self.batch_dir_label = "BATCH"
         self.batch_dirs = self.get_list_of_batch_dirs()
         self.batch_size = None
 
-        self.structure_file = os.path.join(self.work_dir, "structure.cif")
-        assert os.path.exists(self.structure_file) and os.path.isfile(self.structure_file), "ERROR: structure.cif not found or not a file!"
-        self.atoms = ase.io.read(self.structure_file)
-
+        # Check existence and read log file
         self.batch_logfile = os.path.join(self.work_dir, "ucs_batch.log")
         assert os.path.exists(self.batch_logfile) and os.path.isfile(self.batch_logfile), "ERROR; ucs_batch.log not found or not a file!"
-        
-        self.batch_logtxt = read_batch_log(self.batch_logfile)
 
+        self.batch_logtxt = read_batch_log(self.batch_logfile)
+        
+        try:
+            self.sampling_supercell_size = get_sampling_supercell_size_from_log(self.batch_logtxt)
+        except:
+            print("WARNING: Could not read sampling supercell size from log. Could be due to reading older version batch log.")
+            self.sampling_supercell_size = None
+
+        self.structure_file = os.path.join(self.work_dir, "structure.cif")
+        assert os.path.exists(self.structure_file) and os.path.isfile(self.structure_file), "ERROR: structure.cif not found or not a file!"
+        
+        self.structure_unitcell_file = os.path.join(self.work_dir, "structure_unitcell.cif")
+        if os.path.exists(self.structure_unitcell_file) and os.path.isfile(self.structure_unitcell_file):
+            # If unitcell structure file exists, use it.
+            print(f"Unitcell structure file found. Using unitcell structure ({self.structure_unitcell_file}) for grid compilation.")
+        elif self.sampling_supercell_size == (1,1,1):
+            # Else, set it to self.structure
+            print(f"No unitcell structure file, and sampling supercell size = {self.sampling_supercell_size}: Using sampling structure ({self.structure_file}) for grid compilation.")
+            self.structure_unitcell_file = self.structure_file
+        else:
+            print(f"WARNING: No unitcell structure cif file found, and sampling supercell size = {self.sampling_supercell_size}.")
+            self.structure_unitcell_file = None
+
+        if self.structure_unitcell_file:
+            # If the unitcell file is present, we set atoms to this file.
+            # This if the same as 
+            self.atoms = ase.io.read(self.structure_unitcell_file)
+        else:
+            # Fallback to setting atoms to structure file. This ensures that it works the same for old batch runs
+            print(f"WARNING: Falling back to using structure.cif for grid compilation. (No structure_unitcell.cif found; sampling supercell size = {self.sampling_supercell_size})")
+            self.atoms = ase.io.read(self.structure_file)
+
+        
         # Array lists:
         self.energy_arrays = None
         self.index_arrays = None
