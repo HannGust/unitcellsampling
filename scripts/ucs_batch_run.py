@@ -259,7 +259,9 @@ parser.add_argument('-a', '--atom', type=str, action='store', default='Li', help
 parser.add_argument('-g', '--grid', type=int, action='store', default=[10], nargs='+', help="Specify the number of grid points in each dimension (or cubic grid) (mutually exclusive with \"--space\").")
 parser.add_argument('-s', '--space', type=float, action='store', default=None, nargs='+', help="Specify the spacing between the grid points in each dimension (mutually exclusive with \"--grid\").")
 parser.add_argument('--rc', type=float, action='store', default=0.0, help="Specify a cutoff radius in Å that should be excluded from the sampled volume around each atom in the host framework structure.")
+parser.add_argument('--upper-rc', type=float, action='store', default=None, help="Specify a cutoff radius in Å, such that points further away than this from a host framework atom will be excluded from the sampling. In other words, it is the complement to --rc. Default: None (off).")
 parser.add_argument('--vdw', type=float, action='store', default=0.0, help="Specify a fraction of the van der Waals radius that should be excluded from the sampled volume around each atom in the host framework structure.")
+parser.add_argument('--upper-vdw', type=float, action='store', default=None, help="Specify a fraction of the van der Waals radius, such that points further away than this from a host framework atom will be excluded from the sampling. In other words, it is the complement of --vdw. Default: None (off).")
 parser.add_argument('--cp2k_q', '--cp2k-total-charge', type=str, action='store', default=None, help="Specify the total charge of the structure that is to be sampled. Observe that this is for the full, final structure that is actually sampled, not the input structure. This charge is for instance passed to CP2K DFT calculators to set the number of electrons. Options: int - to set the charge explicitly, \"auto\" for automatic determination based of cp2k_aq, None for no determination or setting of charge (e.g. if present in cp2k input template already).")
 #parser.add_argument('--tc', '--total-charge', type=float, action='store', default=None, help="Specify the total charge of the structure that is to be sampled. Observe that this is for the final structure that is actually sampled, not the input structure. This charge is for instance passed to CP2K dft calculators to set the number of electrons.")
 parser.add_argument('--cp2k_aq', '--cp2k-atom-charge', type=int, action='store', default=1, help="Specify the charge of the sampling atom/ion, for the purpose of determining the CP2K total charge. This charge is only used in the automatic determination of the charge that are passed to CP2K DFT calculators. Thus, if cp2k total charge is given as an integer, or if cp2k is not used for sampling, this input is redundant.")
@@ -570,6 +572,8 @@ batch_log.write('Input grid shape: (nx, ny, nz) = ' + str((nx, ny, nz)) + ' True
 
 batch_log.write("Radial cutoff [Å]: " + str(args.rc) + "\n")
 batch_log.write("vdW cutoff factor: " + str(args.vdw) + "\n")
+batch_log.write("Upper radial cutoff [Å]: " + str(args.upper_rc) + "\n")
+batch_log.write("Upper vdW cutoff factor: " + str(args.upper_vdw) + "\n")
 
 if use_sym:
     batch_log.write("Symmetry is used.\n")
@@ -763,7 +767,9 @@ if (args.midvox and use_sym):
 unitcell_grid, unitcell_included = unitcell_ucs.generate_grid_vectors((nx, ny, nz), 
                                                                       cutoff_radii=args.rc, 
                                                                       vdw_scale=args.vdw, 
-                                                                      midvox=args.midvox) # DONE
+                                                                      midvox=args.midvox,
+                                                                      upper_cutoff_radii=args.upper_rc,
+                                                                      upper_vdw_scale=args.upper_vdw) # DONE
 
 unitcell_grid = unitcell_grid.reshape(-1,3) # DONE
 unitcell_included = unitcell_included.reshape(-1) # DONE
@@ -907,8 +913,12 @@ total_points = np.size(unitcell_included)
 # Counters for the specific spherical cutoff types
 n_radial_cutoff_included = np.count_nonzero(unitcell_ucs.cutoff_included)
 n_radial_cutoff_excluded = np.count_nonzero(np.logical_not(unitcell_ucs.cutoff_included))
+n_upper_cutoff_included = np.count_nonzero(unitcell_ucs.upper_cutoff_included)
+n_upper_cutoff_excluded = np.count_nonzero(np.logical_not(unitcell_ucs.upper_cutoff_included))
 n_vdw_included = np.count_nonzero(unitcell_ucs.vdw_included)
 n_vdw_excluded = np.count_nonzero(np.logical_not(unitcell_ucs.vdw_included))
+n_upper_vdw_included = np.count_nonzero(unitcell_ucs.upper_vdw_included)
+n_upper_vdw_excluded = np.count_nonzero(np.logical_not(unitcell_ucs.upper_vdw_included))
 
 batch_log.write("Determining actual number of required calculations, and corresponding grid points...\n")
 
@@ -1005,6 +1015,8 @@ batch_log.write("Points included by total spherical cutoffs: "+str(n_included_to
 batch_log.write("Points excluded by total spherical cutoffs: "+str(n_excluded_total)+"\n")
 batch_log.write("Points excluded by radial cutoff: "+str(n_radial_cutoff_excluded)+"\n")
 batch_log.write("Points excluded by vdW cutoff: "+str(n_vdw_excluded)+"\n")
+batch_log.write("Points excluded by upper radial cutoff: "+str(n_upper_cutoff_excluded)+"\n")
+batch_log.write("Points excluded by upper vdW cutoff: "+str(n_upper_vdw_excluded)+"\n")
 batch_log.write("Points excluded by symmetry: "+str(n_exploited_symmetry)+"\n")
 batch_log.write("Actual number of calculations: "+str(n_calculations_total)+"\n")
 batch_log.write("\n")

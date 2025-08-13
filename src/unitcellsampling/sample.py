@@ -108,6 +108,9 @@ class UnitCellSampler:
             # These are set for proper logging 
             included_radial_cutoff = self.cutoff_included
             included_vdw = self.vdw_included
+            # NEW: For upper cutoffs
+            included_upper_cutoff = self.upper_cutoff_included
+            included_upper_vdw = self.upper_vdw_included
             
             print("UnitCellSampler: Internal grid points are used - Accessing information about volume exclusion masks from sampler.")
 
@@ -154,7 +157,9 @@ class UnitCellSampler:
                                             included_grid_points,
                                             exploit_symmetry,
                                             included_radial_cutoff,
-                                            included_vdw)
+                                            included_vdw,
+                                            included_upper_cutoff,
+                                            included_upper_vdw)
 
         n_exploited_symmetry = 0
         energies = np.empty(grid_points.shape[0], dtype=np.float64)
@@ -229,7 +234,9 @@ class UnitCellSampler:
                                 included_grid_points,
                                 n_exploited_symmetry,
                                 included_radial_cutoff=included_radial_cutoff,
-                                included_vdw=included_vdw
+                                included_vdw=included_vdw,
+                                included_upper_cutoff=included_upper_cutoff,
+                                included_upper_vdw=included_upper_vdw
                                 )
 
         # Normalize
@@ -255,7 +262,9 @@ class UnitCellSampler:
                               cutoff_radii=0.0, 
                               vdw_scale=None, 
                               midvox=False, 
-                              charge_scale=None):
+                              charge_scale=None,
+                              upper_cutoff_radii=None,
+                              upper_vdw_scale=None):
         """Get gridpoint vectors in the unitcell for the use of the
         TuTraSt methodology.
 
@@ -281,7 +290,7 @@ class UnitCellSampler:
             If a dictionary is given, it must contain keys corresponding to
             all atom types in the framework, and/or a \"default\" entry. 
             The default entry, if present, will be used for all atom types
-            not explicitly specified.
+            not explicitly specified. Default: 0.0.
             
 
         vdw_scale
@@ -294,7 +303,7 @@ class UnitCellSampler:
             If a dictionary is given, it must contain keys corresponding to
             all atom types in the framework, and/or a \"default\" entry. 
             The default entry, if present, will be used for all atom types
-            not explicitly specified.
+            not explicitly specified. Default: None (i.e. not applied).
 
         midvox
             Setting that specifies that grid points should be the 
@@ -306,6 +315,30 @@ class UnitCellSampler:
         charge_scale
             If set vdw_radius will be weighted by the atomic charge via
             this factor (not implemented).
+
+        upper_cutoff_radii
+            Single radius or dictionary mapping from atomic symbols to radii
+            in Ångström, for use in spherical cutoffs. Like cutoff_radii, but
+            the complement - that is, exclusion of points OUTSIDE a radius of
+            the framework atoms. If a single float is given, this will be 
+            applied to all atoms in the framework. If a dictionary is given,
+            it must contain keys corresponding to all atom types in the 
+            framework, and/or a \"default\" entry. 
+            The default entry, if present, will be used for all atom types
+            not explicitly specified. Default: None (i.e. not applied).
+
+        upper_vdw_scale
+            Scaling factor or dictionary mapping from atomic symbols to 
+            scaling factors, to use for scaling van der Waals radii. This
+            is used for a spherical cutoff based on scaled van der Waals
+            radii. Works like vdw_scale, except it is the complement - i.e.
+            exclusion of points OUTSIDE a radius of the framework atoms.
+            If a single float is given, this will be applied as a
+            van der Waals scaling factor for all atoms in the framework.
+            If a dictionary is given, it must contain keys corresponding to
+            all atom types in the framework, and/or a \"default\" entry. 
+            The default entry, if present, will be used for all atom types
+            not explicitly specified. Default: None (i.e. not applied).
 
         Returns
         -------
@@ -371,6 +404,22 @@ class UnitCellSampler:
             # If not set, set excluder to None and include all points in this mask:
             cutoff_excluder = None
             cutoff_included = np.full(cart_coords.shape[0], fill_value=True, dtype=bool)
+        
+
+        ### NEW: Upper cutoff, i.e. include within this cutoff and exclude outside of it.
+        if upper_cutoff_radii is not None:
+            # NOTE: Excluder return within_cutfoff, outside_cutoff masks
+            upper_cutoff_excluder = RadialExcluder(radii=upper_cutoff_radii)
+            upper_cutoff_within, upper_cutoff_outside = upper_cutoff_excluder.construct_cutoff_filters(self.atoms, 
+                                                                                        grid_coords=cart_coords, 
+                                                                                        frac_input=False, 
+                                                                                        periodic=True)
+            upper_cutoff_included = upper_cutoff_within
+            #upper_cutoff_excluded = upper_cutoff_outside
+        else:
+            # If not set, set excluder to None and include all points in this mask:
+            upper_cutoff_excluder = None
+            upper_cutoff_included = np.full(cart_coords.shape[0], fill_value=True, dtype=bool)
             
 
         ### Here's the vdw exclusion:
@@ -386,8 +435,25 @@ class UnitCellSampler:
             vdw_included = np.full(cart_coords.shape[0], fill_value=True, dtype=bool)
 
 
+        ### NEW: Upper vdw scale, i.e. include inside of this vdw scale, and exclude outside of it.
+        if upper_vdw_scale is not None:
+            upper_vdw_excluder = ScaledVdWExcluder(vdw_scaling_map=upper_vdw_scale)
+            upper_vdw_within, upper_vdw_outside = upper_vdw_excluder.construct_cutoff_filters(self.atoms, 
+                                                                           grid_coords=cart_coords, 
+                                                                           frac_input=False, 
+                                                                           periodic=True)
+            upper_vdw_included = upper_vdw_within
+            #upper_vdw_excluded = upper_vdw_outside
+        else:
+            # If not set, set excluder to None and include all points in this mask:
+            upper_vdw_excluder = None
+            upper_vdw_included = np.full(cart_coords.shape[0], fill_value=True, dtype=bool)
+
+
         # Combine the masks like so:
-        included = np.logical_and(cutoff_included, vdw_included)
+        included = np.logical_and(np.logical_and(cutoff_included, vdw_included),
+                                  np.logical_and(upper_cutoff_included, upper_vdw_included)
+                                )
 
 
         ##### End block of new vdw code
@@ -402,10 +468,14 @@ class UnitCellSampler:
         # Adding these filters as well too the sampler 
         self.cutoff_included = cutoff_included.reshape(n_frac)
         self.vdw_included = vdw_included.reshape(n_frac)
+        self.upper_cutoff_included = upper_cutoff_included.reshape(n_frac)
+        self.upper_vdw_included = upper_vdw_included.reshape(n_frac)
 
         # NOTE: Adding Excluders too
         self.radial_cutoff_excluder = cutoff_excluder
         self.scaled_vdw_excluder = vdw_excluder
+        self.upper_cutoff_excluder = upper_cutoff_excluder
+        self.upper_vdw_excluder = upper_vdw_excluder
 
         return (cart_coords, included)
 
@@ -414,7 +484,9 @@ class UnitCellSampler:
                                     included_grid_points,
                                     exploit_symmetry,
                                     included_radial_cutoff,
-                                    included_vdw):
+                                    included_vdw,
+                                    included_upper_cutoff,
+                                    included_upper_vdw):
         print('Start calculation of energy grid...')
         print(str(datetime.datetime.now()))
         print()
@@ -447,18 +519,40 @@ class UnitCellSampler:
             print("Scaled van der Waals exclusion used:")
             self.scaled_vdw_excluder.print_settings()
             print()
+        
+        # NEW: Upper cutoff information:
+        if self.upper_cutoff_excluder is not None and included_upper_cutoff is not None:
+            print("Upper radial cutoff exclusion used:")
+            self.upper_cutoff_excluder.print_settings()
+            print()
+
+        if self.upper_vdw_excluder is not None and included_upper_vdw is not None:
+            print("Upper scaled van der Waals exclusion used:")
+            self.upper_vdw_excluder.print_settings()
+            print()
 
         print("Gridpoint mesh to calculate:", self.n_frac)
         print("Total number of grid points:", grid_points.shape[0])
         print("Number of neglected grid points from combined spherical exclusion:",
               np.size(included_grid_points)
               - np.count_nonzero(included_grid_points))
+        
         if included_radial_cutoff is not None:
             print("Number of neglected grid points from cutoff radii:",
                   np.size(included_radial_cutoff) - np.count_nonzero(included_radial_cutoff))         
+        
         if included_vdw is not None:
             print("Number of neglected grid points from scaled van der Waals radii:",
                   np.size(included_vdw) - np.count_nonzero(included_vdw))
+        
+        # NEW: Upper cutoffs
+        if included_upper_cutoff is not None:
+            print("Number of neglected grid points from upper cutoff radii:",
+                  np.size(included_upper_cutoff) - np.count_nonzero(included_upper_cutoff))         
+        
+        if included_upper_vdw is not None:
+            print("Number of neglected grid points from upper van der Waals radii:",
+                  np.size(included_upper_vdw) - np.count_nonzero(included_upper_vdw))
         print()
         print("Grid points to calculate:")
         for grid_point in grid_points:
@@ -474,7 +568,9 @@ class UnitCellSampler:
                                       included_grid_points,
                                       n_exploited_symmetry,
                                       included_radial_cutoff=None,
-                                      included_vdw=None):
+                                      included_vdw=None,
+                                      included_upper_cutoff=None,
+                                      included_upper_vdw=None):
         print("Sampling completed.")
 
         print("=============================================")
@@ -498,7 +594,15 @@ class UnitCellSampler:
         if included_vdw is not None:
             print("Number of neglected grid points from scaled van der Waals radii:",
                   np.size(included_vdw) - np.count_nonzero(included_vdw))
+        
+        # NEW: upper radial/vdw filters
+        if included_upper_cutoff is not None:
+            print("Number of neglected grid points from upper cutoff radii:",
+                  np.size(included_upper_cutoff) - np.count_nonzero(included_upper_cutoff))
             
+        if included_upper_vdw is not None:
+            print("Number of neglected grid points from upper van der Waals radii:",
+                  np.size(included_upper_vdw) - np.count_nonzero(included_upper_vdw))
 
         print("Number of saved calculations due to symmetry:",
               n_exploited_symmetry)
