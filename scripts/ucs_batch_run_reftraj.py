@@ -186,6 +186,7 @@ assert batch_coord_txt_format or batch_coord_txt_format, "Error: You must switch
 
 #### Generic filenames for the batch run
 batch_structure = "structure.cif"
+batch_structure_unitcell = "structure_unitcell.cif"
 batch_jobscript_file = "jobsubmit.sh"
 batch_indices_file = "indices"
 batch_coord_file = "coords"
@@ -280,6 +281,10 @@ parser.add_argument('--cp2k_shell_reset_freq', type=int, action='store', default
 #parser.add_argument('--cp2k_cmd', '--cp2k-command', type=str, action='store', default=default_cp2k_cmd, help="Specify the CP2K-command that is used in the ASE-CP2K calculator interface to start and run the CP2K program. Default: ")
 # Minimum-image-convention cutoff argument
 parser.add_argument('--mic-cutoff', type=float, action='store', default=0.0, help="Specify the cut-off used to construct a supercell obeying the minimum image convention.")
+
+# Sampling supercell argument:
+parser.add_argument('--ssc', '--sampling-supercell', type=int, action='store', default=[1], nargs='+', help="Specify the size of the super cell to be used in the calculations, in terms of how many unit cells to be stacked in the a, b and c directions. This does not affect the grid that is sampled - only a single unit cell will be sampled, irrespective of this argument. This only affects the size of the simulation cell. Default: [1,1,1]. The final sampling supercell size is determined by taking, in each direction, the maximum out of this argument and the super cell size determined from --mic-cutoff.")
+
 parser.add_argument('--ra', action='store_true', help="Specify whether to remove all atoms of the type that is used for sampling from the structure, before doing the sampling.")
 parser.add_argument('--conv', '--conventional-cell', action='store_true', help="If given, will check whether unit cell is conventional cell, and if not, determine the conventional cell based on the input structure and then sample the found conventional cell instead.")
 
@@ -623,13 +628,28 @@ if use_sym:
 #           sampler = UnitcellSampler object for the unitcell
 
 # First construct supercell
+# New block: sampling-supercell argument
+
+if len(args.ssc) == 1:
+    ssc_nx, ssc_ny, ssc_nz = args.ssc * 3
+elif len(args.ssc) == 2 or len(args.ssc) > 3:
+    raise Exception("--ssc must be either 1 or 3 int inputs.")
+else:
+    ssc_nx, ssc_ny, ssc_nz = args.ssc[0:3]
+ssc_size = (ssc_nx, ssc_ny, ssc_nz)
+batch_log.write("Sampling supercell size from input: "+ str(ssc_size)+"\n")
+
+# Then previous block: supercell size from cutoff
 #cutoff = 12.5 # Force cutoff in Å
 cutoff =  args.mic_cutoff # Force cutoff in Å, which is used to determine supercell compliant with MIC
 batch_log.write("Force cutoff used to determine supercell size: "+ str(cutoff)+"\n")
-num_cells = compute_req_supercells(unitcell, cutoff)
+num_cells_cutoff = compute_req_supercells(unitcell, cutoff)
+batch_log.write("Sampling supercell size from cutoff: "+ str(num_cells_cutoff)+"\n")
 
+# Combine both to final supercell size:
+num_cells = tuple(max(supcell_n) for supcell_n in zip(ssc_size, num_cells_cutoff))
 
-batch_log.write("num_cells in supercell: " + str(num_cells) + "\n")
+batch_log.write("Number of unit cells in sampling supercell: " + str(num_cells) + "\n")
 
 supercell_from_init_unitcell = ase.build.make_supercell(
             init_unitcell,
@@ -1107,6 +1127,11 @@ with open(args.jobscript_template, 'r') as jsf:
 # Write cif containing processed structure to be sampled:
 batch_log.write("Writing processed structure to batch directory...\n")
 ase.io.write(batch_structure, supercell_from_unitcell_wo_ions)
+
+# If we sample a supercell, also write the unit cell for which the grid is constructed
+if num_cells != (1,1,1):
+    batch_log.write("Writing sampling unit cell structure to batch directory...\n")
+    ase.io.write(batch_structure_unitcell, unitcell)
 
 # Create symlink to the sampling script that is called to compute each batch
 #batch_log.write("Placing link to sampler in batch directory...\n")
