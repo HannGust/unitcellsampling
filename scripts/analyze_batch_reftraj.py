@@ -18,6 +18,11 @@ os.chdir(pathlib.Path(__file__).parent.resolve())
 
 import argparse
 
+### Structure names - should be the same as in ucs_batch_run_reftraj.py
+batch_structure = "structure.cif"
+batch_structure_unitcell = "structure_unitcell.cif"
+###
+
 
 def init_batch_analysis_parser():
     parser = argparse.ArgumentParser()
@@ -40,19 +45,25 @@ def main():
     options = args2batch_analysis_options(args)
     print("analyze_batch_reftraj.py: Analyzing batch run with work dir:\t", options["batch_wd"])
 
-    struc_file = options["batch_wd"]+"structure.cif"
+    struc_file = os.path.join(options["batch_wd"], batch_structure_unitcell)
+    if os.path.exists(struc_file) and os.path.isfile(struc_file):
+        print("analyze_batch_reftraj.py: Using unit cell for grid compilation:\t", struc_file)
+    else:
+        struc_file = os.path.join(options["batch_wd"], batch_structure)
+        print("analyze_batch_reftraj.py: Using sampling cell for grid compilation:\t", struc_file)
+
 
     items = os.listdir(options["batch_wd"])
 
     for names in items:
         if names.endswith("symInfo.cube"):
-            symmetry_file = options["batch_wd"]+names
+            symmetry_file = os.path.join(options["batch_wd"], names)
 
     print("analyze_batch_reftraj.py: Symmetry file:\t\t\t", symmetry_file)
 
     batch_count = 0
 
-    current_batch_dir = options["batch_wd"]+"BATCH"+str(batch_count)+"/"
+    current_batch_dir = os.path.join(options["batch_wd"], "BATCH"+str(batch_count), )
 
     energies = []
     time_info = []
@@ -60,7 +71,7 @@ def main():
         #print(current_batch_dir)
         print("analyze_batch_reftraj.py: Analyzing:\t\t\t\t", current_batch_dir)
         
-        energy_file = current_batch_dir+"Batch_reftraj-1.ener"
+        energy_file = os.path.join(current_batch_dir, "Batch_reftraj-1.ener")
         energies_i, time_info_i = read_cp2k_energy_file(energy_file)
         energies.extend(energies_i)
         time_info.extend(time_info_i)
@@ -68,23 +79,23 @@ def main():
         if args.rm_files:
 	        # delete unnecessary files
             print("analyze_batch_reftraj.py: rm_files = {} - Removing unneccesary/redundant files.".format(args.rm_files))
-            if os.path.isfile(current_batch_dir+"Batch_reftraj-1.restart"):
-                os.remove(current_batch_dir+"Batch_reftraj-1.restart")
-            if os.path.isfile(current_batch_dir+"Batch_reftraj-1.restart.bak-1"):
-                os.remove(current_batch_dir+"Batch_reftraj-1.restart.bak-1")
-            if os.path.isfile(current_batch_dir+"Batch_reftraj-RESTART.wfn"):
-                os.remove(current_batch_dir+"Batch_reftraj-RESTART.wfn")
-            if os.path.isfile(current_batch_dir+"Batch_reftraj-RESTART.wfn.bak-1"):
-                os.remove(current_batch_dir+"Batch_reftraj-RESTART.wfn.bak-1")
-            if os.path.isfile(current_batch_dir+"cp2k.out"):
-                os.remove(current_batch_dir+"cp2k.out")
-            if os.path.isfile(current_batch_dir+"trajectory.xyz"):
-                os.remove(current_batch_dir+"trajectory.xyz")
-#	        if os.path.isfile(current_batch_dir+"Batch_reftraj-pos-1.xyz"):
-#               os.remove(current_batch_dir+"Batch_reftraj-pos-1.xyz")
+            if os.path.isfile(os.path.join(current_batch_dir, "Batch_reftraj-1.restart")):
+                os.remove(os.path.join(current_batch_dir, "Batch_reftraj-1.restart"))
+            if os.path.isfile(os.path.join(current_batch_dir, "Batch_reftraj-1.restart.bak-1")):
+                os.remove(os.path.join(current_batch_dir, "Batch_reftraj-1.restart.bak-1"))
+            if os.path.isfile(os.path.join(current_batch_dir, "Batch_reftraj-RESTART.wfn")):
+                os.remove(os.path.join(current_batch_dir, "Batch_reftraj-RESTART.wfn"))
+            if os.path.isfile(os.path.join(current_batch_dir, "Batch_reftraj-RESTART.wfn.bak-1")):
+                os.remove(os.path.join(current_batch_dir, "Batch_reftraj-RESTART.wfn.bak-1"))
+            if os.path.isfile(os.path.join(current_batch_dir, "cp2k.out")):
+                os.remove(os.path.join(current_batch_dir, "cp2k.out"))
+            if os.path.isfile(os.path.join(current_batch_dir, "trajectory.xyz")):
+                os.remove(os.path.join(current_batch_dir, "trajectory.xyz"))
+#	        if os.path.isfile(os.path.join(current_batch_dir, "Batch_reftraj-pos-1.xyz")):
+#               os.remove(os.path.join(current_batch_dir, "Batch_reftraj-pos-1.xyz"))
 
         batch_count+=1
-        current_batch_dir = options["batch_wd"]+"BATCH"+str(batch_count)+"/"
+        current_batch_dir = os.path.join(options["batch_wd"], "BATCH"+str(batch_count), )
 
     energies = np.array(energies)
     time_info = np.array(time_info)
@@ -140,7 +151,7 @@ def main():
         print("Grid compiled.")
         print("Writing grid to cube-file...")
 
-        grid_file = options["batch_wd"]+"energy_grid.cube"
+        grid_file = os.path.join(options["batch_wd"], "energy_grid.cube")
         writeCube(grid_file,energy_grid,Nx,Ny,Nz,dx,dy,dz,Na,atom_list)
 
         print("Cube file written.")
