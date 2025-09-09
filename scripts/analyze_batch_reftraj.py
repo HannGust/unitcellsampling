@@ -210,6 +210,8 @@ def read_symmetry_info(filename):
 
     data = np.asarray(data)
     data = data.astype(int)
+    
+    f.close()
 
     return data, Nx, Ny, Nz, dx, dy, dz
 
@@ -230,6 +232,9 @@ def read_cp2k_energy_file(filename):
         sp = line.split()
 
     E = np.array(E)
+
+    f.close()
+    
     return E, time_info
 
 
