@@ -665,6 +665,16 @@ supercell_from_unitcell_wo_ions = ase.build.make_supercell(
 # TODO: Think about which method to use - supercell seems better now
 # Also, test it, see that it works...
 if args.cp2k_q == "auto":
+    # NEW/NOTE: Check that unit cell and supercell volumes are close - otherwise raise error. They need to have numerically same volume for charge determination to work properly.
+    # Also check that they have the same formulas after removing sampling ions
+    assert np.isclose(init_unitcell.cell.volume, unitcell.cell.volume), f"init_unitcell and unitcell differ: significantly different cell volumes! {init_unitcell.cell.volume} Å^3 vs {unitcell.cell.volume} Å^3"
+    assert remove_nonframework_cations_fancy(init_unitcell, ase.Atom(atom)).get_chemical_formula() == remove_nonframework_cations_fancy(unitcell, ase.Atom(atom)).get_chemical_formula(), \
+        f"init_unitcell and unitcell differ: non-sampling atoms are not the same! {remove_nonframework_cations_fancy(init_unitcell, ase.Atom(atom)).get_chemical_formula()} vs {remove_nonframework_cations_fancy(unitcell, ase.Atom(atom)).get_chemical_formula()}"
+    
+    assert np.isclose(supercell_from_init_unitcell.cell.volume, supercell_from_unitcell_wo_ions.cell.volume), f"Supercells differ: significantly different cell volumes! {supercell_from_init_unitcell.cell.volume} Å^3 vs {supercell_from_unitcell_wo_ions.cell.volume} Å^3"
+    assert remove_nonframework_cations_fancy(supercell_from_init_unitcell, ase.Atom(atom)).get_chemical_formula() == remove_nonframework_cations_fancy(supercell_from_unitcell_wo_ions, ase.Atom(atom)).get_chemical_formula(), \
+        f"supercells differ: non-sampling atoms are not the same! {remove_nonframework_cations_fancy(supercell_from_init_unitcell, ase.Atom(atom)).get_chemical_formula()} vs {remove_nonframework_cations_fancy(supercell_from_unitcell_wo_ions, ase.Atom(atom)).get_chemical_formula()}"
+
     # Determine charge per unitcell:
     cp2k_charge_per_unitcell = determine_total_cp2k_charge(init_unitcell, 
             unitcell, args.atom, args.cp2k_aq)
@@ -963,7 +973,7 @@ if use_sym:
     # NOTE: Printing symmetry cube here:
     # NOTE: Now this is in a function in the symmetry module
     # print symmetry information
-    symmetry.write_symmetry_cube(calc_name, symID_grid, supercell_from_unitcell_wo_ions, nx, ny, nz)
+    symmetry.write_symmetry_cube(calc_name, symID_grid, unitcell, nx, ny, nz)
 
 else:
     # Here only the previous vdw exclusion is performed
@@ -985,7 +995,7 @@ else:
     symID_grid = np.zeros(nx*ny*nz, dtype="int")
     symID_grid[unitcell_included] = np.arange(1, n_calculations_total+1)
     symID_grid = symID_grid.reshape(nx,ny,nz)
-    symmetry.write_symmetry_cube(calc_name, symID_grid, supercell_from_unitcell_wo_ions, nx, ny, nz)
+    symmetry.write_symmetry_cube(calc_name, symID_grid, unitcell, nx, ny, nz)
     
 
 # Info print to batch-log:
@@ -1128,10 +1138,9 @@ with open(args.jobscript_template, 'r') as jsf:
 batch_log.write("Writing processed structure to batch directory...\n")
 ase.io.write(batch_structure, supercell_from_unitcell_wo_ions)
 
-# If we sample a supercell, also write the unit cell for which the grid is constructed
-if num_cells != (1,1,1):
-    batch_log.write("Writing sampling unit cell structure to batch directory...\n")
-    ase.io.write(batch_structure_unitcell, unitcell)
+# Write the unit cell for which the grid is constructed
+batch_log.write("Writing sampling unit cell structure to batch directory...\n")
+ase.io.write(batch_structure_unitcell, unitcell)
 
 # Create symlink to the sampling script that is called to compute each batch
 #batch_log.write("Placing link to sampler in batch directory...\n")
