@@ -162,6 +162,56 @@ def get_sampling_supercell_size_from_log(log_txt):
 
     return sampling_supercell_size
 
+
+def get_cp2k_sampling_charge_from_log(log_txt):
+    """Reads the sampling charge from a batch log. Only relevant for cp2k calculations.
+    """
+    charge_pattern = "Passing total charge = (-?[0-9]+) to CP2K calculator"
+
+    charge_match = re.search(charge_pattern, log_txt)
+
+    if charge_match is None:
+        raise ValueError("Sampling charge could not be read from batch log")
+    
+    charge = int(charge_match.group(1))
+
+    return charge
+
+
+def get_sampling_atom_charge_from_log(log_txt):
+    """Reads and returns the sampling atom charge from a batch log. Currently relevant
+    only/mainly for cp2k calculations.
+    """
+    atom_charge_pattern = "cp2k_aq : (-?[0-9]+)"
+    atom_charge_match = re.search(atom_charge_pattern, log_txt)
+
+    if atom_charge_match is None:
+        raise ValueError("Sampling atom charge could not be read from batch log")
+    
+    atom_charge = int(atom_charge_match.group(1))
+    return atom_charge
+    
+
+def get_sampling_atom_from_log(log_txt):
+    """Reads the sampling atom species from a batch log.
+    Returns the symbol as a string.
+    """
+    symbol_pattern = "atom : ([A-Z][a-z]*)"
+    symbol_match = re.search(symbol_pattern, log_txt)
+    if symbol_match is None:
+        raise ValueError("Sampling atom type could not be read from batch log")
+    
+    sampling_atom_symbol = str(symbol_match.group(1))
+    
+    try:
+        sampling_atom = ase.Atom(symbol=sampling_atom_symbol)
+    except KeyError as k_err:
+        raise ValueError(f"Invalid atom symbol encountered: {sampling_atom_symbol}") from k_err
+    
+    return sampling_atom_symbol
+
+
+
 # TODO: UPDATED THIS TO WORK WITH THE NEW SYMMETRY OUTPUT IN THE UPDATED BATCHER. Updated and cleaned up code from testing
 # spacegroup comparison and validation. This seems to work now!
 def get_symmetry_from_batch_log(log_txt):
