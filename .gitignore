@@ -118,5 +118,6 @@ grid_gen_mod_local_1.out
 grid_gen_mod_local_2.out
 grid_gen_mod_local.py
 submit_mod_local.sh
+SYMMETRY_TMP_TODO.txt
 
 # .git
