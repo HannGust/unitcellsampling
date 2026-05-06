@@ -14,7 +14,6 @@ import pathlib
 import copy
 
 import os
-os.chdir(pathlib.Path(__file__).parent.resolve())
 
 import argparse
 
