@@ -1,17 +1,25 @@
 #!/usr/bin/env python
 
+"""Script for simple, point-by-point comparison of two grids,
+with possibility of applying a scaled vdW cutoff before comparison,
+i.e. only comparing points outside this cutoff."""
 
-import ase
+import argparse
 from ase.io.cube import read_cube
 import numpy as np
-import argparse
-import unitcellsampling.sample as sample
+from unitcellsampling import sample
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(
+        description="Simple point-by-point comparison of two energy grids (.cube files), \
+                with optional application of scaled vdW cutoff.")
 
-parser.add_argument("grid1", type=str, action='store', help="The 1st grid (cube-file) to be compared. Need to have same atoms object and grid dimensions.")
-parser.add_argument("grid2", type=str, action='store', help="The 1st grid (cube-file) to be compared. Need to have same atoms object and grid dimensions.")
-parser.add_argument("--vdw", type=float, action='store', help="The vdw cutoff to apply to the respective grids when doing comparison, i.e. exclude points within the cutoff.")
+parser.add_argument("grid1", type=str, action='store', help="The 1st grid (cube-file) to be \
+        compared.")
+parser.add_argument("grid2", type=str, action='store', help="The 2st grid (cube-file) to be \
+        compared. Needs to have equal atoms object and grid dimensions as grid1.")
+parser.add_argument("--vdw", type=float, action='store',
+                    help="The scaling factor for the vdW cutoff to apply to the respective \
+                            grids when doing comparison, i.e. exclude points within the cutoff.")
 #parser.add_argument("--midvox", action='store_ture', help="Whether to use midvox ")
 args = parser.parse_args()
 
@@ -55,8 +63,9 @@ if grid1_greater_than_grid2.all() and grid2_greater_than_grid1.all():
     print("Grids are equal everywhere!")
 
 if (not grid1_greater_than_grid2.all()) and (not grid2_greater_than_grid1.all()):
-    print("No. of points where grid1 < grid2: ", np.sum(grid2_greater_than_grid1) - np.sum(grids_equal))
-    print("No. of points where grid1 > grid2: ", np.sum(grid1_greater_than_grid2) - np.sum(grids_equal))
+    print("No. of points where grid1 < grid2: ", np.sum(grid2_greater_than_grid1))
+    print("No. of points where grid1 > grid2: ", np.sum(grid1_greater_than_grid2))
     print("No. of points where grid1 = grid2: ", np.sum(grids_equal))
 
-    print("Total no. of points: ", np.sum(incl1))
+    print("Total no. of compared points: ", np.sum(incl1))
+    print("Total no. of points: ", np.size(grid1))
