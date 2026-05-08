@@ -107,7 +107,7 @@ ENV/
 tests/out/
 *.traj
 *.cube
-*.cif
+#*.cif - Do not ignore cifs, for now.
 
 # Local test files
 NOTES.txt
