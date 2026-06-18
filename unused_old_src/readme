@@ -1,0 +1,7 @@
+unused_old_src/
+
+Temporary directory for unused, old source code that is no
+longer used nor needed in unitcellsampling. Perhaps some of
+it can be useful in the future if some related features are 
+properly implemented, but for now stow it away here. Might 
+be removed eventually as well.
