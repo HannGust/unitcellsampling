@@ -24,10 +24,10 @@ def read_array(file, dtype=np.float64):
     """Read array from either a txt or npy file.
     """
     if not os.path.exists(file):
-        raise FileNotFoundError("ERROR: File not found.")
+        raise FileNotFoundError(f"ERROR: File not found: {file=}")
     
     if not os.path.isfile(file):
-        raise FileExistsError("ERROR: File is not an ordinary file.")
+        raise FileExistsError(f"ERROR: File is not an ordinary file: {file=}")
 
     if file[-4:] == ".txt":
         array = np.loadtxt(file)
@@ -51,7 +51,7 @@ def read_indices(file):
         indices = indices.astype(int)
         print("WARNING: Could not cast indices to int-type with safe casting. Array values were rounded before casting.")
 
-    assert indices.dtype == np.int, "ERROR: Read and processed index array has dtype != int!"
+    assert indices.dtype == np.dtype(int), "ERROR: Read and processed index array has dtype != int!"
     return indices
 
 
@@ -72,7 +72,7 @@ def fill_grid_indices(grid, energies, indices, copy=True):
     assert isinstance(energies, np.ndarray), "ERROR: Energies must be np.ndarray!"
     assert isinstance(indices, np.ndarray), "ERROR: Indices must be np.ndarray!"
 
-    assert indices.dtype in [np.int, int], "ERROR: Index array must have dtype int!"
+    assert indices.dtype in [np.int_, int], "ERROR: Index array must have dtype int!"
     
     assert indices.shape[0] == energies.shape[0], "ERROR: Indices and energies must have the same leading dimension (lenght)!"
 

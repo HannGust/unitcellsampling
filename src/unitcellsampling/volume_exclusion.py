@@ -264,10 +264,10 @@ class RadialExcluder:
         #print("DEBUG: uniq_indices: ", uniq_indices)
         # Now, use the uniq_indices to obtain a filer for grid coords
         
-        within_cutoff_mask = np.full(grid_coords.shape[0], fill_value=False, dtype=np.bool8)
+        within_cutoff_mask = np.full(grid_coords.shape[0], fill_value=False, dtype=np.bool)
         np.put(within_cutoff_mask, uniq_indices, True, mode="raise")
 
-        outside_cutoff_mask_test = np.full(grid_coords.shape[0], fill_value=True, dtype=np.bool8)
+        outside_cutoff_mask_test = np.full(grid_coords.shape[0], fill_value=True, dtype=np.bool)
         np.put(outside_cutoff_mask_test, uniq_indices, False, mode="raise")
 
         outside_cutoff_mask = np.logical_not(within_cutoff_mask)
