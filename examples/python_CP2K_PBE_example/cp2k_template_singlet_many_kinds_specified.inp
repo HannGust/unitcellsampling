@@ -1,0 +1,270 @@
+&FORCE_EVAL
+   METHOD Quickstep
+   STRESS_TENSOR ANALYTICAL
+   &DFT
+      BASIS_SET_FILE_NAME BASIS_MOLOPT
+      POTENTIAL_FILE_NAME POTENTIAL
+      MULTIPLICITY 1
+      &MGRID
+         CUTOFF     400
+         REL_CUTOFF 50
+         NGRIDS     4
+      &END MGRID
+      &POISSON
+         PERIODIC XYZ
+      &END POISSON
+      &QS
+         METHOD GPW
+      &END QS
+      &SCF
+         EPS_SCF 1.0E-6
+         MAX_SCF 3000
+         &OT
+            MINIMIZER      CG
+            PRECONDITIONER FULL_ALL
+            ENERGY_GAP 1.0E-3
+         &END OT
+      &END SCF
+      &XC
+         &XC_FUNCTIONAL PBE
+            &PBE
+               PARAMETRIZATION ORIG
+            &END PBE
+         &END XC_FUNCTIONAL
+         &VDW_POTENTIAL
+            DISPERSION_FUNCTIONAL  PAIR_POTENTIAL
+            &PAIR_POTENTIAL
+               TYPE                 DFTD3
+               PARAMETER_FILE_NAME  /software/sse/manual/CP2K/2023.1-gcc-11.3.0-bare/nsc1/data/dftd3.dat
+               REFERENCE_FUNCTIONAL PBE
+            &END PAIR_POTENTIAL
+         &END VDW_POTENTIAL
+      &END XC
+   &END DFT
+   &SUBSYS
+      &KIND Ag
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Al
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND As
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Au
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Ba
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Be
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Bi
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Br
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND C
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Ca
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Cd
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Cl
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Co
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Cr
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Cs
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Cu
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND F
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Fe
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Ga
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Ge
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND H
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Hf
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND In
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Ir
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND K
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND La
+         BASIS SET DZV-MOLOPT-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Li
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Lu
+         BASIS SET DZV-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Mg
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Mo
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND N
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Na
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Nb
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Ni
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND O
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND P
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Pd
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Pt
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Rb
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Re
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Rh
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND S
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Sb
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Sc
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Se
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Si
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Sn
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Sr
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Te
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Ti
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Tl
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND V
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND W
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Y
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Zn
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+      &KIND Zr
+         BASIS SET DZVP-MOLOPT-SR-GTH
+         POTENTIAL GTH-PBE
+      &END KIND
+   &END SUBSYS
+&END FORCE_EVAL

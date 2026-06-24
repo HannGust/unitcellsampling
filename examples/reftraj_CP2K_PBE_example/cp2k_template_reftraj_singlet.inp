@@ -1,0 +1,87 @@
+&GLOBAL
+  PROJECT Batch_reftraj
+  PRINT_LEVEL LOW
+  RUN_TYPE MD
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  STRESS_TENSOR ANALYTICAL
+
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    POTENTIAL_FILE_NAME POTENTIAL
+    MULTIPLICITY 1
+    CHARGE ADDCHARGE
+
+    &MGRID
+      CUTOFF     400
+      REL_CUTOFF 50
+      NGRIDS     4
+    &END MGRID
+    &POISSON
+      PERIODIC XYZ
+    &END POISSON
+    &QS
+      METHOD GPW
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-6
+      MAX_SCF 3000
+      IGNORE_CONVERGENCE_FAILURE
+      &OT
+        MINIMIZER      CG
+        PRECONDITIONER FULL_ALL
+        ENERGY_GAP 1.0E-3
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+        &PBE
+          PARAMETRIZATION ORIG
+        &END PBE
+      &END XC_FUNCTIONAL
+      &VDW_POTENTIAL
+        DISPERSION_FUNCTIONAL  PAIR_POTENTIAL
+        &PAIR_POTENTIAL
+          TYPE                 DFTD3
+          PARAMETER_FILE_NAME  /software/sse/manual/CP2K/2023.1-gcc-11.3.0-bare/nsc1/data/dftd3.dat
+          REFERENCE_FUNCTIONAL PBE
+        &END PAIR_POTENTIAL
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      CELL_FILE_FORMAT CIF
+      CELL_FILE_NAME ../structure.cif
+    &END CELL
+
+    &TOPOLOGY
+      COORD_FILE_FORMAT XYZ
+      COORD_FILE_NAME trajectory.xyz
+    &END TOPOLOGY
+
+ADDKINDS
+
+  &END SUBSYS
+&END FORCE_EVAL
+
+&MOTION
+  &MD
+    ENSEMBLE REFTRAJ
+    &REFTRAJ
+      TRAJ_FILE_NAME trajectory.xyz
+      STRIDE 1
+      LAST_SNAPSHOT ADDNFRAME
+      EVAL ENERGY
+    &END REFTRAJ
+    &PRINT
+      &ENERGY
+        &EACH
+          MD 1
+        &END
+      &END
+    &END
+  &END MD
+&END MOTION
